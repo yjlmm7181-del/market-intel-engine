@@ -12,9 +12,10 @@ function Topbar() {
       <nav>
         <Link to="/">{t('dashboard')}</Link>
         <Link to="/sms">{t('smsGenerator')}</Link>
-        <button className="lang-toggle" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}>
-          {lang === 'en' ? '中文' : 'EN'}
-        </button>
+        <div className="lang-switch">
+          <button className={lang === 'en' ? 'active' : ''} onClick={() => setLang('en')}>EN</button>
+          <button className={lang === 'zh' ? 'active' : ''} onClick={() => setLang('zh')}>中文</button>
+        </div>
       </nav>
     </header>
   )

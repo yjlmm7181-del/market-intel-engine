@@ -30,11 +30,11 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [])
 
-  async function generate(id) {
+  async function generate(id, withZh) {
     setLoadingSms(id)
     try {
       const msgs = await api.generateSms(id)
-      setSmsByEvent((s) => ({ ...s, [id]: msgs }))
+      setSmsByEvent((s) => ({ ...s, [id]: { messages: msgs, showZh: !!withZh } }))
     } catch (e) {
       setError(e.message)
     } finally {
@@ -104,12 +104,15 @@ export default function Dashboard() {
             </div>
             <p className="summary">{e.ai_summary}</p>
             <div className="actions">
-              <button onClick={() => generate(e.id)} disabled={loadingSms === e.id}>
+              <button onClick={() => generate(e.id, false)} disabled={loadingSms === e.id}>
                 {loadingSms === e.id ? t('generating') : t('generateSms')}
+              </button>
+              <button className="btn-outline" onClick={() => generate(e.id, true)} disabled={loadingSms === e.id}>
+                {t('bilingual')}
               </button>
               <Link className="link" to={`/events/${e.id}`}>{t('details')}</Link>
             </div>
-            {smsByEvent[e.id] && <SmsList messages={smsByEvent[e.id]} />}
+            {smsByEvent[e.id] && <SmsList messages={smsByEvent[e.id].messages} showZh={smsByEvent[e.id].showZh} />}
           </div>
         ))}
       </section>

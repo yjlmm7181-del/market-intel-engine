@@ -60,7 +60,7 @@ export default function SmsGenerator() {
           <button onClick={() => generate(false)} disabled={loading || !selected}>
             {loading ? t('generating') : t('generateSms')}
           </button>
-          <button className="ghost" onClick={() => generate(true)} disabled={loading || !selected}>
+          <button className="btn-outline" onClick={() => generate(true)} disabled={loading || !selected}>
             {t('bilingual')}
           </button>
         </div>

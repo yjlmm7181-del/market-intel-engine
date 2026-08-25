@@ -52,7 +52,7 @@ const translations = {
 const LangContext = createContext({ lang: 'en', setLang: () => {}, t: (k) => k })
 
 export function LangProvider({ children }) {
-  const [lang, setLang] = useState('en')
+  const [lang, setLang] = useState('zh')
   const t = (key) => translations[lang]?.[key] ?? translations.en[key] ?? key
   return (
     <LangContext.Provider value={{ lang, setLang, t }}>
