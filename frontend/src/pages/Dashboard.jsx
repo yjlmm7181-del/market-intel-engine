@@ -13,7 +13,21 @@ export default function Dashboard() {
   const [loadingSms, setLoadingSms] = useState(null)
 
   useEffect(() => {
-    api.overview().then(setData).catch((e) => setError(e.message))
+    let cancelled = false
+    async function load(attemptsLeft) {
+      try {
+        const d = await api.overview()
+        if (!cancelled) setData(d)
+      } catch (e) {
+        if (attemptsLeft > 0 && !cancelled) {
+          setTimeout(() => load(attemptsLeft - 1), 3000)
+        } else if (!cancelled) {
+          setError(e.message)
+        }
+      }
+    }
+    load(2)
+    return () => { cancelled = true }
   }, [])
 
   async function generate(id) {

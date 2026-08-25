@@ -21,6 +21,7 @@ vite.config.js.timestamp-*
 *.db
 *.sqlite3
 *.log
+snapshot_cache.json
 .coverage
 htmlcov/
 

@@ -5,6 +5,9 @@ Data sources degrade gracefully: Moomoo (behind a circuit breaker) → yfinance;
 AI → deterministic template; news → empty list if unreachable.
 """
 
+import json
+import os
+import threading
 import time
 from dataclasses import dataclass, field
 from typing import Optional
@@ -63,41 +66,92 @@ class MarketPipeline:
 
         self._cache: dict = {}
         self._cache_ts = 0.0
+        self._cache_file = settings.cache_file
+        self._refresh_lock = threading.Lock()
 
     # -- collection --------------------------------------------------------
     def refresh(self) -> Snapshot:
-        # Collect indexes / movers / news in parallel to cut cold-start latency
-        # (the yfinance batch snapshot is the slowest, ~18s).
-        from concurrent.futures import ThreadPoolExecutor
+        # Only one refresh runs at a time; a second caller waits for the
+        # in-flight one and reuses its cached result.
+        if not self._refresh_lock.acquire(blocking=False):
+            self._refresh_lock.acquire()
+            self._refresh_lock.release()
+            return Snapshot()
 
-        with ThreadPoolExecutor(max_workers=3) as ex:
-            f_idx = ex.submit(self.index_collector.collect)
-            f_mov = ex.submit(self.mover_collector.collect_all)
-            f_news = ex.submit(self.news_collector.collect)
-            indexes = f_idx.result()
-            all_movers = f_mov.result()
-            news = f_news.result()
+        try:
+            # Collect indexes / movers / news in parallel to cut cold-start
+            # latency (the yfinance batch snapshot is the slowest, ~18s).
+            from concurrent.futures import ThreadPoolExecutor
 
-        top_movers = self._top_n(all_movers, settings.mover_top_n)
-        events = self.engine.build(all_movers, news, indexes)
-        for e in events:
-            e.ai_summary, e.summary_source = self.analyst.summarize(e)
+            with ThreadPoolExecutor(max_workers=3) as ex:
+                f_idx = ex.submit(self.index_collector.collect)
+                f_mov = ex.submit(self.mover_collector.collect_all)
+                f_news = ex.submit(self.news_collector.collect)
+                indexes = f_idx.result()
+                all_movers = f_mov.result()
+                news = f_news.result()
 
-        snap = Snapshot(indexes=indexes, movers=top_movers, news=news, events=events)
-        self._persist(snap)
-        self._cache = self._to_dict(snap)
-        self._cache_ts = time.time()
-        return snap
+            top_movers = self._top_n(all_movers, settings.mover_top_n)
+            events = self.engine.build(all_movers, news, indexes)
+            for e in events:
+                e.ai_summary, e.summary_source = self.analyst.summarize(e)
+
+            snap = Snapshot(indexes=indexes, movers=top_movers, news=news, events=events)
+            self._persist(snap)
+            self._cache = self._to_dict(snap)
+            self._cache_ts = time.time()
+            self._save_disk_cache()
+            return snap
+        finally:
+            self._refresh_lock.release()
 
     def get_overview(self, force: bool = False) -> dict:
-        if not force and self._cache and (time.time() - self._cache_ts) < settings.cache_ttl_seconds:
+        now = time.time()
+        if not force and self._cache and (now - self._cache_ts) < settings.cache_ttl_seconds:
             return self._cache
+        # Serve the last on-disk snapshot instantly (free tier loses RAM cache
+        # when it sleeps) and refresh in the background.
+        if not force:
+            disk = self._load_disk_cache()
+            if disk:
+                self._cache = disk
+                self._cache_ts = now
+                self._refresh_async()
+                return self._cache
         self.refresh()
         return self._cache
 
     def clear_cache(self) -> None:
         self._cache = {}
         self._cache_ts = 0.0
+
+    # -- on-disk snapshot cache -------------------------------------------
+    def _save_disk_cache(self) -> None:
+        try:
+            tmp = self._cache_file + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"ts": time.time(), "data": self._cache}, f)
+            os.replace(tmp, self._cache_file)
+        except Exception:
+            pass
+
+    def _load_disk_cache(self) -> Optional[dict]:
+        try:
+            with open(self._cache_file, encoding="utf-8") as f:
+                payload = json.load(f)
+            data = payload.get("data")
+            return data if data else None
+        except Exception:
+            return None
+
+    def _refresh_async(self) -> None:
+        def _run():
+            try:
+                self.refresh()
+            except Exception:
+                pass
+
+        threading.Thread(target=_run, daemon=True).start()
 
     @staticmethod
     def _top_n(movers: list[StockMover], n: int) -> list[StockMover]:

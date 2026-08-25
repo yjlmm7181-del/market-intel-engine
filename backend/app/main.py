@@ -13,6 +13,13 @@ from app.core.config import settings
 from app.db.session import init_db
 
 
+def _warmup(pipeline) -> None:
+    try:
+        pipeline.refresh()
+    except Exception:
+        pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
@@ -20,6 +27,15 @@ async def lifespan(app: FastAPI):
         from app.tasks.scheduler import start_scheduler
 
         start_scheduler()
+    except Exception:
+        pass
+    # Pre-warm market data in the background so the first page load is fast.
+    try:
+        import threading
+
+        from app.services.market_pipeline import pipeline
+
+        threading.Thread(target=_warmup, args=(pipeline,), daemon=True).start()
     except Exception:
         pass
     yield

@@ -38,8 +38,11 @@ class Settings(BaseSettings):
 
     # --- Pipeline ---
     mover_top_n: int = 10
-    cache_ttl_seconds: int = 60
+    cache_ttl_seconds: int = 300
     refresh_interval_minutes: int = 15
+    # On-disk snapshot cache: serves the last result instantly on cold start
+    # (free-tier instances lose RAM cache when they sleep, but keep disk).
+    cache_file: str = "snapshot_cache.json"
 
     # --- CORS (comma-separated origins) ---
     cors_origins: str = "http://localhost:3000,http://localhost:5173"
