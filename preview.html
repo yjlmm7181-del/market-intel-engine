@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Market Intel Engine — Preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; background:#0b0e14; color:#e6e9ef; -webkit-font-smoothing:antialiased; }
+  .app { max-width:1100px; margin:0 auto; padding:0 20px 60px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:18px 0; border-bottom:1px solid #1c2330; margin-bottom:24px; }
+  .brand { font-weight:700; font-size:18px; color:#fff; }
+  .badge { background:#1f2a3d; color:#7aa8ff; font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; }
+  h1 { font-size:22px; }
+  h2 { font-size:15px; margin:0 0 12px; color:#aab2c5; text-transform:uppercase; letter-spacing:.04em; }
+  .card { background:#11151d; border:1px solid #1c2330; border-radius:12px; padding:18px; margin-bottom:18px; }
+  .indexes { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:18px; }
+  .index-card .index-name { color:#8b93a7; font-size:13px; }
+  .index-card .index-price { font-size:26px; font-weight:700; margin:6px 0; }
+  .index-change { font-size:14px; font-weight:600; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .up { color:#2fd6a4; } .down { color:#ff5c5c; }
+  .movers,.news { list-style:none; margin:0; padding:0; }
+  .movers li { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #181d28; font-size:14px; }
+  .movers .sym { font-weight:700; min-width:52px; }
+  .movers .name { flex:1; color:#8b93a7; }
+  .news li { padding:7px 0; border-bottom:1px solid #181d28; font-size:13.5px; line-height:1.4; }
+  .news a { color:#c7cede; text-decoration:none; }
+  .news a:hover { color:#fff; }
+  .event-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .event-title { font-size:17px; font-weight:700; color:#fff; }
+  .heat { background:linear-gradient(90deg,#ff6a00,#ff9d2e); color:#1a0f00; font-weight:800; padding:4px 10px; border-radius:999px; font-size:12px; white-space:nowrap; }
+  .event-meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:13px; color:#8b93a7; margin-bottom:10px; }
+  .chip { background:#1a2130; padding:3px 8px; border-radius:6px; font-size:12px; }
+  .summary { color:#c7cede; font-size:14px; line-height:1.55; margin:8px 0; }
+  .actions { display:flex; align-items:center; gap:14px; margin:12px 0; }
+  button { background:#2b7fff; border:none; color:#fff; font-weight:700; padding:10px 16px; border-radius:8px; cursor:pointer; font-size:13px; }
+  button:hover { background:#3d8bff; }
+  .sms-list { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:14px; }
+  .sms { background:#0c1119; border:1px solid #1e2735; border-radius:10px; padding:14px; }
+  .sms-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .version { font-size:11px; color:#8b93a7; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .cta { background:#1f2a3d; color:#7aa8ff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; }
+  .sms-body { font-size:13.5px; line-height:1.5; margin:0; color:#e6e9ef; }
+  .note { color:#8b93a7; font-size:12px; margin-top:20px; text-align:center; }
+  @media (max-width:800px){ .indexes,.grid,.sms-list{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <span class="brand">📈 Market Intel Engine</span>
+    <span class="badge">今日真实数据快照 · 2026-08-25</span>
+  </header>
+
+  <section class="indexes" id="indexes"></section>
+
+  <div class="grid">
+    <section class="card"><h2>Today's Movers</h2><ul class="movers" id="movers"></ul></section>
+    <section class="card"><h2>Related News</h2><ul class="news" id="news"></ul></section>
+  </div>
+
+  <section>
+    <h2>Top Market Events</h2>
+    <div id="events"></div>
+  </section>
+
+  <p class="note">这是用今天真实抓到的数据做的静态预览（成品 UI）。真正的实时版需在本地跑 <code>docker compose up</code>。</p>
+</div>
+
+<script>
+const data = {
+  indexes: [
+    { name: "S&P 500", last: 7652.86, chg: -0.28 },
+    { name: "NASDAQ Composite", last: 25980.19, chg: -0.76 },
+    { name: "Dow Jones Industrial Average", last: 53417.16, chg: 0.26 },
+  ],
+  movers: [
+    ["MA","Mastercard",3.31],["V","Visa",3.06],["MSTR","MicroStrategy",2.83],
+    ["WMT","Walmart",2.69],["TGT","Target",2.69],["DIS","Disney",2.63],
+    ["COST","Costco",2.50],["UNH","UnitedHealth",2.22],
+  ],
+  news: [
+    "U.S. stocks traded mixed on the 24th, with semiconductor shares underperforming ahead of NVIDIA's earnings report.",
+    "12 Health Care Stocks Moving In Monday's After-Market Session",
+    "12 Consumer Discretionary Stocks Moving In Monday's After-Market Session",
+    "12 Information Technology Stocks Moving In Monday's After-Market Session",
+  ],
+  events: [
+    {
+      title: "Financials / Banks", heat: 73, index: "DOW", indexChg: 0.26,
+      stocks: [["MA","Mastercard",3.31],["V","Visa",3.06],["JPM","JPMorgan Chase",1.37],["WFC","Wells Fargo",1.05],["BAC","Bank of America",1.04]],
+      summary: "Financials / Banks is leading today's market move: Mastercard (MA) is up 3.3%, with the DOW up 0.26%. 3 related headlines are driving the theme."
+    },
+    {
+      title: "Consumer / Retail", heat: 58, index: "SP500", indexChg: -0.28,
+      stocks: [["WMT","Walmart",2.69],["TGT","Target",2.69],["DIS","Disney",2.63],["COST","Costco",2.50],["ABNB","Airbnb",1.55]],
+      summary: "Consumer / Retail is leading today's market move: Walmart (WMT) is up 2.7%, with the SP500 down 0.28%. 30 related headlines are driving the theme."
+    },
+    {
+      title: "Big Tech / Mega Cap", heat: 47, index: "NASDAQ", indexChg: -0.76,
+      stocks: [["META","Meta Platforms",1.66],["AMZN","Amazon",1.33],["GOOGL","Alphabet",0.94],["MSFT","Microsoft",0.84],["NFLX","Netflix",0.53]],
+      summary: "Big Tech / Mega Cap is leading today's market move: Meta Platforms (META) is up 1.7%, with the NASDAQ down 0.76%. 12 related headlines are driving the theme."
+    },
+  ],
+};
+
+const pct = v => (v==null ? "—" : (v>0?"+":"") + v.toFixed(2) + "%");
+const cls = v => (v==null ? "" : v>=0 ? "up" : "down");
+const p = v => v.toFixed(2);
+
+function renderIndexes() {
+  document.getElementById("indexes").innerHTML = data.indexes.map(i => `
+    <div class="card index-card">
+      <div class="index-name">${i.name}</div>
+      <div class="index-price">${p(i.last)}</div>
+      <div class="index-change ${cls(i.chg)}">${pct(i.chg)}</div>
+    </div>`).join("");
+}
+function renderMovers() {
+  document.getElementById("movers").innerHTML = data.movers.map(m => `
+    <li><span class="sym">${m[0]}</span><span class="name">${m[1]}</span><span class="${cls(m[2])}">${pct(m[2])}</span></li>`).join("");
+}
+function renderNews() {
+  document.getElementById("news").innerHTML = data.news.map(n => `<li><a href="#">${n}</a></li>`).join("");
+}
+
+function smsFor(ev) {
+  const lead = ev.stocks[0], second = ev.stocks[1];
+  const idx = `${ev.index} ${pct(ev.indexChg)}`;
+  return [
+    { v:"A", cta:"MORE", body:`🔥 ${ev.title}: ${lead[0]} ${pct(lead[2])} leading today. Reply MORE for the story.` },
+    { v:"B", cta:"LIST", body:`${idx} as ${ev.title} pops. ${lead[0]} ${pct(lead[2])}, ${second[0]} ${pct(second[2])}. Text LIST for the names.` },
+    { v:"C", cta:"BULL", body:`Market watch: ${ev.title} moving fast. Reply BULL to get every ticker before the close.` },
+  ];
+}
+
+function renderEvents() {
+  document.getElementById("events").innerHTML = data.events.map((ev, i) => `
+    <div class="card event">
+      <div class="event-head"><span class="event-title">🔥 ${ev.title}</span><span class="heat">Heat ${ev.heat}</span></div>
+      <div class="event-meta">
+        <span>${ev.index}</span><span class="${cls(ev.indexChg)}">${pct(ev.indexChg)}</span>
+        ${ev.stocks.slice(0,4).map(s => `<span class="chip">${s[0]} <span class="${cls(s[2])}">${pct(s[2])}</span></span>`).join("")}
+      </div>
+      <p class="summary">${ev.summary}</p>
+      <div class="actions"><button onclick="toggleSms(${i})">GENERATE SMS</button></div>
+      <div class="sms-list" id="sms-${i}" style="display:none"></div>
+    </div>`).join("");
+}
+
+function toggleSms(i) {
+  const el = document.getElementById("sms-" + i);
+  if (el.style.display === "none") {
+    el.style.display = "grid";
+    el.innerHTML = smsFor(data.events[i]).map(m => `
+      <div class="sms">
+        <div class="sms-top"><span class="version">Version ${m.v}</span><span class="cta">${m.cta}</span></div>
+        <p class="sms-body">${m.body}</p>
+      </div>`).join("");
+  } else {
+    el.style.display = "none";
+  }
+}
+
+renderIndexes(); renderMovers(); renderNews(); renderEvents();
+</script>
+</body>
+</html>

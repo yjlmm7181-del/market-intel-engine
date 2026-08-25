@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: market-intel-engine
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: FRONTEND_DIST
+        value: /app/frontend/dist
+      - key: DATABASE_URL
+        value: sqlite:///./market_intel.db
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: AI_MODEL
+        value: gpt-4o-mini
+      - key: NEWS_LANG
+        value: en
+      - key: NEWS_SIZE
+        value: "20"
