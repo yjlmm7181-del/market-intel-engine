@@ -68,5 +68,6 @@ class SmsMessage(Base):
     event_id = Column(Integer, ForeignKey("events.id"), index=True, nullable=False)
     version = Column(String(2), default="A")
     body = Column(Text, nullable=False)
+    body_zh = Column(Text, default="")
     cta = Column(String(8), default="MORE")
     created_at = Column(DateTime, default=utcnow)

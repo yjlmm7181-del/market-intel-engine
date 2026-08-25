@@ -252,11 +252,12 @@ class MarketPipeline:
         db = SessionLocal()
         try:
             for d in drafts:
-                msg = SmsMessage(event_id=event_id, version=d.version, body=d.body, cta=d.cta)
+                msg = SmsMessage(event_id=event_id, version=d.version, body=d.body,
+                                 cta=d.cta, body_zh=d.body_zh)
                 db.add(msg)
                 db.flush()
-                saved.append({"id": msg.id, "event_id": event_id,
-                              "version": d.version, "body": d.body, "cta": d.cta})
+                saved.append({"id": msg.id, "event_id": event_id, "version": d.version,
+                              "body": d.body, "cta": d.cta, "body_zh": d.body_zh})
             db.commit()
         finally:
             db.close()
@@ -267,7 +268,7 @@ class MarketPipeline:
         try:
             rows = db.query(SmsMessage).order_by(SmsMessage.id.desc()).limit(30).all()
             return [{"id": r.id, "event_id": r.event_id, "version": r.version,
-                     "body": r.body, "cta": r.cta} for r in rows]
+                     "body": r.body, "cta": r.cta, "body_zh": r.body_zh} for r in rows]
         finally:
             db.close()
 
@@ -289,10 +290,11 @@ class MarketPipeline:
             return None
         db = SessionLocal()
         try:
-            msg = SmsMessage(event_id=event_id, version="R", body=d.body, cta=d.cta)
+            msg = SmsMessage(event_id=event_id, version="R", body=d.body, cta=d.cta, body_zh=d.body_zh)
             db.add(msg)
             db.flush()
-            out = {"id": msg.id, "event_id": event_id, "version": "R", "body": d.body, "cta": d.cta}
+            out = {"id": msg.id, "event_id": event_id, "version": "R", "body": d.body,
+                   "cta": d.cta, "body_zh": d.body_zh}
             db.commit()
             return out
         finally:

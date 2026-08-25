@@ -8,6 +8,7 @@ export default function SmsGenerator() {
   const [events, setEvents] = useState([])
   const [selected, setSelected] = useState(null)
   const [sms, setSms] = useState(null)
+  const [bilingual, setBilingual] = useState(false)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -22,9 +23,10 @@ export default function SmsGenerator() {
     api.listSms().then(setHistory).catch(() => {})
   }, [])
 
-  async function generate() {
+  async function generate(withZh) {
     if (!selected) return
     setLoading(true)
+    setBilingual(withZh)
     try {
       setSms(await api.generateSms(selected))
     } catch (e) {
@@ -55,11 +57,14 @@ export default function SmsGenerator() {
               <option key={e.id} value={e.id}>{e.title} ({t('heat')} {e.heat_score})</option>
             ))}
           </select>
-          <button onClick={generate} disabled={loading || !selected}>
+          <button onClick={() => generate(false)} disabled={loading || !selected}>
             {loading ? t('generating') : t('generateSms')}
           </button>
+          <button className="ghost" onClick={() => generate(true)} disabled={loading || !selected}>
+            {t('bilingual')}
+          </button>
         </div>
-        {sms && <SmsList messages={sms} />}
+        {sms && <SmsList messages={sms} showZh={bilingual} />}
       </div>
 
       <div className="card">
@@ -72,6 +77,7 @@ export default function SmsGenerator() {
               <span className="cta">{m.cta}</span>
             </div>
             <p className="sms-body">{m.body}</p>
+            {m.body_zh && <p className="sms-body zh">{m.body_zh}</p>}
             <button className="ghost" onClick={() => regen(m.id)}>{t('regenerate')}</button>
           </div>
         ))}

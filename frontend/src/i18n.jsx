@@ -21,6 +21,7 @@ const translations = {
     history: 'History',
     noMessages: 'No messages generated yet.',
     regenerate: 'Regenerate',
+    bilingual: 'Bilingual (EN/中文)',
     version: 'Version',
   },
   zh: {
@@ -43,6 +44,7 @@ const translations = {
     history: '历史记录',
     noMessages: '还没有生成短信。',
     regenerate: '重新生成',
+    bilingual: '中英文对照',
     version: '版本',
   },
 }

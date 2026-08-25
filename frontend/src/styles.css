@@ -329,6 +329,33 @@ label {
   color: #e6e9ef;
 }
 
+.sms-body.zh {
+  color: #8b93a7;
+  border-top: 1px solid #1e2735;
+  padding-top: 8px;
+  margin-top: 8px;
+}
+
+.sms-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-btn {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.copy-btn:hover svg {
+  stroke: #fff;
+}
+
 .muted {
   color: #8b93a7;
   font-size: 14px;

@@ -57,6 +57,7 @@ class SmsOut(BaseModel):
     version: str
     body: str
     cta: str
+    body_zh: str = ""
 
 
 class OverviewOut(BaseModel):
