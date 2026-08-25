@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import { fmtPct, fmtPrice, pctClass } from '../format.js'
+import { useLang } from '../i18n.jsx'
 import SmsList from '../components/SmsList.jsx'
 
 export default function Dashboard() {
+  const { t } = useLang()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const [smsByEvent, setSmsByEvent] = useState({})
@@ -26,10 +28,10 @@ export default function Dashboard() {
     }
   }
 
-  if (error) return <div className="state error">Failed to load: {error}</div>
-  if (!data) return <div className="state">Loading market data… (first load can take ~20s)</div>
+  if (error) return <div className="state error">{t('failed')}: {error}</div>
+  if (!data) return <div className="state">{t('loading')}</div>
 
-  const topEvents = data.events.slice(0, 3)
+  const topEvents = data.events.slice(0, 10)
 
   return (
     <div>
@@ -45,7 +47,7 @@ export default function Dashboard() {
 
       <div className="grid">
         <section className="card">
-          <h2>Today's Movers</h2>
+          <h2>{t('movers')}</h2>
           <ul className="movers">
             {data.movers.map((m) => (
               <li key={m.symbol}>
@@ -58,7 +60,7 @@ export default function Dashboard() {
         </section>
 
         <section className="card">
-          <h2>Related News</h2>
+          <h2>{t('news')}</h2>
           <ul className="news">
             {data.news.slice(0, 12).map((n) => (
               <li key={n.news_id}>
@@ -70,12 +72,12 @@ export default function Dashboard() {
       </div>
 
       <section>
-        <h2>Top Market Events</h2>
+        <h2>{t('topEvents')}</h2>
         {topEvents.map((e) => (
           <div className="card event" key={e.id}>
             <div className="event-head">
               <span className="event-title">🔥 {e.title}</span>
-              <span className="heat">Heat {e.heat_score}</span>
+              <span className="heat">{t('heat')} {e.heat_score}</span>
             </div>
             <div className="event-meta">
               <span>{e.index_key.toUpperCase()}</span>
@@ -89,9 +91,9 @@ export default function Dashboard() {
             <p className="summary">{e.ai_summary}</p>
             <div className="actions">
               <button onClick={() => generate(e.id)} disabled={loadingSms === e.id}>
-                {loadingSms === e.id ? 'Generating…' : 'GENERATE SMS'}
+                {loadingSms === e.id ? t('generating') : t('generateSms')}
               </button>
-              <Link className="link" to={`/events/${e.id}`}>Details →</Link>
+              <Link className="link" to={`/events/${e.id}`}>{t('details')}</Link>
             </div>
             {smsByEvent[e.id] && <SmsList messages={smsByEvent[e.id]} />}
           </div>

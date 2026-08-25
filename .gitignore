@@ -15,6 +15,7 @@ node_modules/
 dist/
 build/
 .vite/
+vite.config.js.timestamp-*
 
 # DB / logs
 *.db

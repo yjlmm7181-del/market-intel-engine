@@ -36,12 +36,17 @@ class Snapshot:
 
 class MarketPipeline:
     def __init__(self) -> None:
-        moomoo = CircuitBreakerProvider(
-            MoomooOpenDConnector(host=settings.moomoo_host, port=settings.moomoo_port)
+        # Separate provider instances per collector so they can run in parallel
+        # without sharing connection state.
+        def _moomoo():
+            return CircuitBreakerProvider(
+                MoomooOpenDConnector(host=settings.moomoo_host, port=settings.moomoo_port)
+            )
+
+        self.index_collector = IndexCollector(_moomoo(), YFinanceProvider())
+        self.mover_collector = MoverCollector(
+            _moomoo(), YFinanceProvider(), top_n=settings.mover_top_n
         )
-        yf = YFinanceProvider()
-        self.index_collector = IndexCollector(moomoo, yf)
-        self.mover_collector = MoverCollector(moomoo, yf, top_n=settings.mover_top_n)
         self.news_collector = NewsCollector(
             MoomooNewsProvider(base_url=settings.news_base_url, lang=settings.news_lang),
             Dedup(),
@@ -61,10 +66,19 @@ class MarketPipeline:
 
     # -- collection --------------------------------------------------------
     def refresh(self) -> Snapshot:
-        indexes = self.index_collector.collect()
-        all_movers = self.mover_collector.collect_all()
+        # Collect indexes / movers / news in parallel to cut cold-start latency
+        # (the yfinance batch snapshot is the slowest, ~18s).
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            f_idx = ex.submit(self.index_collector.collect)
+            f_mov = ex.submit(self.mover_collector.collect_all)
+            f_news = ex.submit(self.news_collector.collect)
+            indexes = f_idx.result()
+            all_movers = f_mov.result()
+            news = f_news.result()
+
         top_movers = self._top_n(all_movers, settings.mover_top_n)
-        news = self.news_collector.collect()
         events = self.engine.build(all_movers, news, indexes)
         for e in events:
             e.ai_summary, e.summary_source = self.analyst.summarize(e)

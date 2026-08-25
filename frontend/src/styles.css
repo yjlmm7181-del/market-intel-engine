@@ -47,6 +47,22 @@ body {
   color: #fff;
 }
 
+.lang-toggle {
+  background: #1a2130;
+  color: #7aa8ff;
+  border: 1px solid #2a3446;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-left: 14px;
+  cursor: pointer;
+}
+
+.lang-toggle:hover {
+  color: #fff;
+}
+
 h1 {
   font-size: 22px;
 }

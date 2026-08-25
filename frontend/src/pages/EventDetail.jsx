@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api.js'
 import { fmtPct, pctClass } from '../format.js'
+import { useLang } from '../i18n.jsx'
 import SmsList from '../components/SmsList.jsx'
 
 export default function EventDetail() {
   const { id } = useParams()
+  const { t } = useLang()
   const [event, setEvent] = useState(null)
   const [sms, setSms] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -27,15 +29,15 @@ export default function EventDetail() {
   }
 
   if (error) return <div className="state error">{error}</div>
-  if (!event) return <div className="state">Loading…</div>
+  if (!event) return <div className="state">{t('loadingShort')}</div>
 
   return (
     <div>
-      <Link to="/" className="link">← Back to Dashboard</Link>
+      <Link to="/" className="link">{t('back')}</Link>
       <div className="card event">
         <div className="event-head">
           <span className="event-title">🔥 {event.title}</span>
-          <span className="heat">Heat {event.heat_score}</span>
+          <span className="heat">{t('heat')} {event.heat_score}</span>
         </div>
         <div className="event-meta">
           <span>{event.index_key.toUpperCase()}</span>
@@ -43,7 +45,7 @@ export default function EventDetail() {
         </div>
         <p className="summary">{event.ai_summary}</p>
 
-        <h3>Stocks</h3>
+        <h3>{t('stocks')}</h3>
         <ul className="movers">
           {event.stocks.map((s) => (
             <li key={s.symbol}>
@@ -54,7 +56,7 @@ export default function EventDetail() {
           ))}
         </ul>
 
-        <h3>News</h3>
+        <h3>{t('news')}</h3>
         <ul className="news">
           {event.news.map((n, i) => (
             <li key={i}>
@@ -65,7 +67,7 @@ export default function EventDetail() {
 
         <div className="actions">
           <button onClick={generate} disabled={loading}>
-            {loading ? 'Generating…' : 'GENERATE SMS'}
+            {loading ? t('generating') : t('generateSms')}
           </button>
         </div>
         {sms && <SmsList messages={sms} />}

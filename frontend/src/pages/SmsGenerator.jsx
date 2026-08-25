@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
+import { useLang } from '../i18n.jsx'
 import SmsList from '../components/SmsList.jsx'
 
 export default function SmsGenerator() {
+  const { t } = useLang()
   const [events, setEvents] = useState([])
   const [selected, setSelected] = useState(null)
   const [sms, setSms] = useState(null)
@@ -13,7 +15,7 @@ export default function SmsGenerator() {
   useEffect(() => {
     api.overview()
       .then((d) => {
-        setEvents(d.events.slice(0, 3))
+        setEvents(d.events.slice(0, 10))
         if (d.events.length) setSelected(d.events[0].id)
       })
       .catch((e) => setError(e.message))
@@ -42,27 +44,27 @@ export default function SmsGenerator() {
 
   return (
     <div>
-      <h1>SMS Generator</h1>
+      <h1>{t('smsGenerator')}</h1>
       {error && <div className="state error">{error}</div>}
 
       <div className="card">
-        <label>Market Event</label>
+        <label>{t('marketEvent')}</label>
         <div className="row">
           <select value={selected ?? ''} onChange={(e) => setSelected(Number(e.target.value))}>
             {events.map((e) => (
-              <option key={e.id} value={e.id}>{e.title} (Heat {e.heat_score})</option>
+              <option key={e.id} value={e.id}>{e.title} ({t('heat')} {e.heat_score})</option>
             ))}
           </select>
           <button onClick={generate} disabled={loading || !selected}>
-            {loading ? 'Generating…' : 'GENERATE SMS'}
+            {loading ? t('generating') : t('generateSms')}
           </button>
         </div>
         {sms && <SmsList messages={sms} />}
       </div>
 
       <div className="card">
-        <h2>History</h2>
-        {history.length === 0 && <p className="muted">No messages generated yet.</p>}
+        <h2>{t('history')}</h2>
+        {history.length === 0 && <p className="muted">{t('noMessages')}</p>}
         {history.map((m) => (
           <div className="sms" key={m.id}>
             <div className="sms-top">
@@ -70,7 +72,7 @@ export default function SmsGenerator() {
               <span className="cta">{m.cta}</span>
             </div>
             <p className="sms-body">{m.body}</p>
-            <button className="ghost" onClick={() => regen(m.id)}>Regenerate</button>
+            <button className="ghost" onClick={() => regen(m.id)}>{t('regenerate')}</button>
           </div>
         ))}
       </div>

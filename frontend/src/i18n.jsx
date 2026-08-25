@@ -1,0 +1,64 @@
+import { createContext, useContext, useState } from 'react'
+
+const translations = {
+  en: {
+    brand: 'Market Intel Engine',
+    dashboard: 'Dashboard',
+    smsGenerator: 'SMS Generator',
+    movers: "Today's Movers",
+    news: 'Related News',
+    topEvents: 'Top Market Events',
+    heat: 'Heat',
+    generateSms: 'GENERATE SMS',
+    generating: 'Generating…',
+    details: 'Details →',
+    back: '← Back to Dashboard',
+    stocks: 'Stocks',
+    loading: 'Loading market data… (first load can take ~20s)',
+    loadingShort: 'Loading…',
+    failed: 'Failed to load',
+    marketEvent: 'Market Event',
+    history: 'History',
+    noMessages: 'No messages generated yet.',
+    regenerate: 'Regenerate',
+    version: 'Version',
+  },
+  zh: {
+    brand: '市场情报引擎',
+    dashboard: '仪表盘',
+    smsGenerator: '短信生成器',
+    movers: '今日上涨股票',
+    news: '相关新闻',
+    topEvents: '热门市场事件',
+    heat: '热度',
+    generateSms: '生成短信',
+    generating: '生成中…',
+    details: '详情 →',
+    back: '← 返回仪表盘',
+    stocks: '相关股票',
+    loading: '正在加载行情数据…（首次约 20 秒）',
+    loadingShort: '加载中…',
+    failed: '加载失败',
+    marketEvent: '市场事件',
+    history: '历史记录',
+    noMessages: '还没有生成短信。',
+    regenerate: '重新生成',
+    version: '版本',
+  },
+}
+
+const LangContext = createContext({ lang: 'en', setLang: () => {}, t: (k) => k })
+
+export function LangProvider({ children }) {
+  const [lang, setLang] = useState('en')
+  const t = (key) => translations[lang]?.[key] ?? translations.en[key] ?? key
+  return (
+    <LangContext.Provider value={{ lang, setLang, t }}>
+      {children}
+    </LangContext.Provider>
+  )
+}
+
+export function useLang() {
+  return useContext(LangContext)
+}

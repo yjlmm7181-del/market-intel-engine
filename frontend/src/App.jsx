@@ -1,25 +1,38 @@
 import { Link, Route, Routes } from 'react-router-dom'
+import { LangProvider, useLang } from './i18n.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import EventDetail from './pages/EventDetail.jsx'
 import SmsGenerator from './pages/SmsGenerator.jsx'
 
+function Topbar() {
+  const { lang, setLang, t } = useLang()
+  return (
+    <header className="topbar">
+      <Link to="/" className="brand">📈 {t('brand')}</Link>
+      <nav>
+        <Link to="/">{t('dashboard')}</Link>
+        <Link to="/sms">{t('smsGenerator')}</Link>
+        <button className="lang-toggle" onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}>
+          {lang === 'en' ? '中文' : 'EN'}
+        </button>
+      </nav>
+    </header>
+  )
+}
+
 export default function App() {
   return (
-    <div className="app">
-      <header className="topbar">
-        <Link to="/" className="brand">📈 Market Intel Engine</Link>
-        <nav>
-          <Link to="/">Dashboard</Link>
-          <Link to="/sms">SMS Generator</Link>
-        </nav>
-      </header>
-      <main>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/events/:id" element={<EventDetail />} />
-          <Route path="/sms" element={<SmsGenerator />} />
-        </Routes>
-      </main>
-    </div>
+    <LangProvider>
+      <div className="app">
+        <Topbar />
+        <main>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/events/:id" element={<EventDetail />} />
+            <Route path="/sms" element={<SmsGenerator />} />
+          </Routes>
+        </main>
+      </div>
+    </LangProvider>
   )
 }
