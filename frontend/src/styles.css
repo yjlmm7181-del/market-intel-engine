@@ -47,18 +47,23 @@ body {
   color: #fff;
 }
 
-.lang-switch {
+.lang-switch,
+.switch {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-left: 14px;
   background: #1a2130;
   border: 1px solid #2a3446;
   border-radius: 8px;
   padding: 2px;
 }
 
-.lang-switch button {
+.lang-switch {
+  margin-left: 14px;
+}
+
+.lang-switch button,
+.switch button {
   background: transparent;
   border: 1px solid transparent;
   color: #8b93a7;
@@ -69,7 +74,8 @@ body {
   cursor: pointer;
 }
 
-.lang-switch button.active {
+.lang-switch button.active,
+.switch button.active {
   background: #2b7fff;
   color: #fff;
 }
@@ -78,11 +84,11 @@ body {
   background: transparent;
   border: 1px solid #4a5568;
   color: #aab2c5;
-  font-weight: 600;
-  padding: 6px 12px;
+  font-weight: 700;
+  padding: 10px 16px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .btn-outline:hover {

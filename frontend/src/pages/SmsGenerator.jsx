@@ -9,6 +9,7 @@ export default function SmsGenerator() {
   const [selected, setSelected] = useState(null)
   const [sms, setSms] = useState(null)
   const [bilingual, setBilingual] = useState(false)
+  const [style, setStyle] = useState('hook')
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -28,7 +29,7 @@ export default function SmsGenerator() {
     setLoading(true)
     setBilingual(withZh)
     try {
-      setSms(await api.generateSms(selected))
+      setSms(await api.generateSms(selected, style))
     } catch (e) {
       setError(e.message)
     } finally {
@@ -57,6 +58,12 @@ export default function SmsGenerator() {
               <option key={e.id} value={e.id}>{e.title} ({t('heat')} {e.heat_score})</option>
             ))}
           </select>
+        </div>
+        <div className="row">
+          <div className="switch">
+            <button className={style === 'standard' ? 'active' : ''} onClick={() => setStyle('standard')}>{t('styleStandard')}</button>
+            <button className={style === 'hook' ? 'active' : ''} onClick={() => setStyle('hook')}>{t('styleHook')}</button>
+          </div>
           <button onClick={() => generate(false)} disabled={loading || !selected}>
             {loading ? t('generating') : t('generateSms')}
           </button>

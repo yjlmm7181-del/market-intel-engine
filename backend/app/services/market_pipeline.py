@@ -242,12 +242,12 @@ class MarketPipeline:
         }
 
     # -- sms ---------------------------------------------------------------
-    def generate_sms(self, event_id: int) -> list[dict]:
+    def generate_sms(self, event_id: int, style: str = "hook") -> list[dict]:
         event_dict = self.get_event(event_id)
         if event_dict is None:
             return []
         event = self._dict_to_event(event_dict)
-        drafts = self.sms.generate(event)
+        drafts = self.sms.generate(event, style)
         saved: list[dict] = []
         db = SessionLocal()
         try:

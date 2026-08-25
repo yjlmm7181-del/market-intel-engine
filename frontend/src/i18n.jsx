@@ -22,6 +22,9 @@ const translations = {
     noMessages: 'No messages generated yet.',
     regenerate: 'Regenerate',
     bilingual: 'Bilingual (EN/中文)',
+    style: 'Style',
+    styleStandard: 'Standard',
+    styleHook: 'Hook',
     version: 'Version',
   },
   zh: {
@@ -45,6 +48,9 @@ const translations = {
     noMessages: '还没有生成短信。',
     regenerate: '重新生成',
     bilingual: '中英文对照',
+    style: '风格',
+    styleStandard: '简洁',
+    styleHook: '钩子',
     version: '版本',
   },
 }

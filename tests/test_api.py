@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.collectors.index_collector import IndexQuote
 from app.collectors.mover_collector import StockMover
+from app.core.config import settings
 from app.db.session import Base, engine, init_db
 from app.main import app
 from app.services import market_pipeline as mp
@@ -48,6 +50,9 @@ class StubNewsCollector:
 def client(monkeypatch):
     Base.metadata.drop_all(bind=engine)
     init_db()
+    # remove any on-disk snapshot cache so stale event ids don't leak between tests
+    if os.path.exists(settings.cache_file):
+        os.remove(settings.cache_file)
     monkeypatch.setattr(mp.pipeline, "index_collector", StubIndexCollector())
     monkeypatch.setattr(mp.pipeline, "mover_collector", StubMoverCollector())
     monkeypatch.setattr(mp.pipeline, "news_collector", StubNewsCollector())
@@ -99,11 +104,11 @@ def test_event_detail_and_generate_sms(client):
     sms = client.post(f"/api/events/{ev['id']}/generate-sms")
     assert sms.status_code == 200
     messages = sms.json()
-    assert len(messages) == 6
-    assert len({m["body"] for m in messages}) == 6
+    assert len(messages) == 7
+    assert len({m["body"] for m in messages}) == 7
 
     all_sms = client.get("/api/sms").json()
-    assert len(all_sms) == 6
+    assert len(all_sms) == 7
 
     regen = client.post(f"/api/sms/{messages[0]['id']}/regenerate")
     assert regen.status_code == 200

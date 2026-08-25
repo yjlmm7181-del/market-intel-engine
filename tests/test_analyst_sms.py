@@ -36,9 +36,9 @@ def test_template_analyst_falls_back_without_key():
 def test_sms_template_multiple_distinct_versions():
     gen = SmsGenerator(AIProvider(api_key=""))
     drafts = gen.generate(_event())
-    assert len(drafts) == 6
+    assert len(drafts) == 7
     for d in drafts:
-        assert d.cta in CTAS
+        assert d.cta in CTAS or d.cta == "Yes"
         assert d.body
         assert d.body_zh
         assert len(d.body) < 200

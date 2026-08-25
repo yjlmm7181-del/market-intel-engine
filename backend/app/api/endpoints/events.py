@@ -30,7 +30,7 @@ def analyze_event(event_id: int):
 
 
 @router.post("/events/{event_id}/generate-sms", response_model=list[SmsOut])
-def generate_sms(event_id: int):
+def generate_sms(event_id: int, style: str = "hook"):
     if pipeline.get_event(event_id) is None:
         raise HTTPException(status_code=404, detail="event not found")
-    return pipeline.generate_sms(event_id)
+    return pipeline.generate_sms(event_id, style)
