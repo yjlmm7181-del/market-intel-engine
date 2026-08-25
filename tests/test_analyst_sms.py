@@ -33,15 +33,17 @@ def test_template_analyst_falls_back_without_key():
     assert "NVDA" in text
 
 
-def test_sms_template_three_versions_unique_ctas():
+def test_sms_template_multiple_distinct_versions():
     gen = SmsGenerator(AIProvider(api_key=""))
     drafts = gen.generate(_event())
-    assert len(drafts) == 3
-    ctas = [d.cta for d in drafts]
-    assert len(set(ctas)) == 3
+    assert len(drafts) == 6
     for d in drafts:
         assert d.cta in CTAS
+        assert d.body
+        assert d.body_zh
         assert len(d.body) < 200
+    bodies = [d.body for d in drafts]
+    assert len(set(bodies)) == len(bodies)  # no duplicated content
 
 
 def test_ai_analyst_uses_ai_when_available():

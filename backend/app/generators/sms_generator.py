@@ -1,7 +1,6 @@
-"""SMS generator — 3 versions, each ending with a CTA (MORE/LIST/WATCH/FULL/BULL).
-
-Each draft carries an English `body` and a Chinese `body_zh` (same message,
-translated) so the UI can toggle a bilingual view.
+"""SMS generator — multiple versions with distinct content, each ending with a
+CTA (MORE/LIST/WATCH/FULL/BULL). Every draft carries an English `body` and a
+Chinese `body_zh` with the same meaning.
 """
 
 import json
@@ -39,8 +38,9 @@ SYSTEM_PROMPT = (
     "Keep each message under 160 characters. Always end with exactly one call-to-action "
     "keyword chosen from: MORE, LIST, WATCH, FULL, BULL (e.g. 'Reply MORE for details'). "
     "Return JSON only: {\"messages\": [{\"version\": \"A\", \"body\": \"<English SMS>\", "
-    "\"body_zh\": \"<natural Chinese translation>\", \"cta\": \"MORE\"}, ...]} "
-    "with exactly three messages (versions A, B, C), each with a different CTA."
+    "\"body_zh\": \"<Chinese translation with the same meaning>\", \"cta\": \"MORE\"}, ...]} "
+    "with exactly six messages (versions A-F). Each message must have DIFFERENT content "
+    "(a different angle or fact), not just reworded duplicates."
 )
 
 
@@ -60,55 +60,85 @@ def _theme_zh(event: MarketEventData) -> str:
     return THEME_ZH.get(event.theme, event.title)
 
 
+def _idx(event: MarketEventData) -> str:
+    if event.index_change is None:
+        return ""
+    return f"{event.index_key.upper()} {event.index_change:+.2f}%"
+
+
 def _template(event: MarketEventData) -> list[SmsDraft]:
-    lead = event.stocks[0] if event.stocks else None
-    second = event.stocks[1] if len(event.stocks) > 1 else None
     theme = event.title
     theme_zh = _theme_zh(event)
+    stocks = event.stocks
+    lead = stocks[0] if stocks else None
+    second = stocks[1] if len(stocks) > 1 else None
+    idx = _idx(event)
+    n_stocks = len(stocks)
+    n_news = len(event.news)
 
-    idx = ""
-    if event.index_change is not None:
-        idx = f"{event.index_key.upper()} {event.index_change:+.2f}%"
+    lead_en = f"{lead.symbol} {_fmt_change(lead.change_rate)}" if lead else theme
+    lead_zh = f"{lead.symbol} {_fmt_change(lead.change_rate)} {_dir_zh(lead.change_rate)}" if lead else theme_zh
 
     out: list[SmsDraft] = []
-    if lead:
-        chg = _fmt_change(lead.change_rate)
+
+    # A — headline / lead mover
+    out.append(SmsDraft(
+        "A",
+        f"\U0001F525 {theme}: {lead_en} leading today. Reply MORE for the story.",
+        "MORE",
+        f"\U0001F525 {theme_zh}：{lead_zh}今日。回复 MORE 获取详情。",
+    ))
+
+    # B — names / top movers
+    if second:
+        second_en = f"{second.symbol} {_fmt_change(second.change_rate)}"
+        second_zh = f"{second.symbol} {_fmt_change(second.change_rate)}"
         out.append(SmsDraft(
-            "A",
-            f"\U0001F525 {theme}: {lead.symbol} {chg} leading today. Reply MORE for the story.",
-            "MORE",
-            f"\U0001F525 {theme_zh}：{lead.symbol} {chg} {_dir_zh(lead.change_rate)}今日。回复 MORE 获取详情。",
+            "B",
+            f"{idx} as {theme} pops. {lead_en}, {second_en}. Text LIST for the names.",
+            "LIST",
+            f"{idx}，{theme_zh}走强。{lead_zh}、{second_zh}。回复 LIST 获取名单。",
         ))
-        if second:
-            out.append(SmsDraft(
-                "B",
-                f"{idx} as {theme} pops. {lead.symbol} {chg}, {second.symbol} {_fmt_change(second.change_rate)}. Text LIST for the names.",
-                "LIST",
-                f"{idx}，{theme_zh}走强。{lead.symbol} {chg}、{second.symbol} {_fmt_change(second.change_rate)}。回复 LIST 获取名单。",
-            ))
-        else:
-            out.append(SmsDraft(
-                "B",
-                f"{idx} as {theme} moves. {lead.symbol} {chg}. Text LIST for the names.",
-                "LIST",
-                f"{idx}，{theme_zh}活跃。{lead.symbol} {chg}。回复 LIST 获取名单。",
-            ))
     else:
         out.append(SmsDraft(
-            "A", f"\U0001F525 {theme} is today's hot theme. Reply MORE.", "MORE",
-            f"\U0001F525 {theme_zh}是今日热门主题。回复 MORE。",
-        ))
-        out.append(SmsDraft(
-            "B", f"{theme} trending. Text LIST for the tickers.", "LIST",
-            f"{theme_zh}热度上升。回复 LIST 获取标的。",
+            "B",
+            f"{theme} movers to watch: {lead_en}. Text LIST for the names.",
+            "LIST",
+            f"{theme_zh}异动股：{lead_zh}。回复 LIST 获取名单。",
         ))
 
+    # C — watchlist breadth
     out.append(SmsDraft(
         "C",
-        f"Market watch: {theme} moving fast. Reply BULL to get every ticker before the close.",
-        "BULL",
-        f"行情速递：{theme_zh}快速拉升。回复 BULL 收盘前获取全部标的。",
+        f"Watchlist: {theme} has {n_stocks} movers right now. Reply WATCH for live updates.",
+        "WATCH",
+        f"自选提醒：{theme_zh}现有 {n_stocks} 只异动股。回复 WATCH 获取实时更新。",
     ))
+
+    # D — full report
+    out.append(SmsDraft(
+        "D",
+        f"Full rundown: {theme} — {n_stocks} movers, {n_news} headlines. Reply FULL for the complete report.",
+        "FULL",
+        f"完整报告：{theme_zh} —— {n_stocks} 只异动股、{n_news} 条新闻。回复 FULL 获取完整报告。",
+    ))
+
+    # E — momentum
+    out.append(SmsDraft(
+        "E",
+        f"Momentum alert: {theme} moving fast. Reply BULL to get every ticker before the close.",
+        "BULL",
+        f"动量提醒：{theme_zh}快速拉升。回复 BULL 收盘前获取全部标的。",
+    ))
+
+    # F — news-driven
+    out.append(SmsDraft(
+        "F",
+        f"News-driven: {n_news} headlines behind the {theme} move today. Reply MORE.",
+        "MORE",
+        f"新闻驱动：{n_news} 条新闻推动{theme_zh}今日行情。回复 MORE。",
+    ))
+
     return out
 
 
@@ -124,7 +154,7 @@ class SmsGenerator:
         return _template(event)
 
     def _ai_generate(self, event: MarketEventData) -> list[SmsDraft]:
-        text = self.ai.complete(SYSTEM_PROMPT, _build_prompt(event), max_tokens=700)
+        text = self.ai.complete(SYSTEM_PROMPT, _build_prompt(event), max_tokens=900)
         if not text:
             return []
         msgs = _parse_messages(text)
@@ -141,7 +171,7 @@ class SmsGenerator:
                 cta,
                 str(m.get("body_zh", "")),
             ))
-        return drafts[:3]
+        return drafts[:6]
 
 
 def _parse_messages(text: str) -> list[dict]:
@@ -163,6 +193,6 @@ def _build_prompt(event: MarketEventData) -> str:
     idx = f"{event.index_key} {event.index_change:+.2f}%" if event.index_change is not None else "n/a"
     return (
         f"Theme: {event.title}\nIndex: {idx}\nStocks: {stocks}\n"
-        "Write 3 SMS variants (A, B, C) under 160 chars, each ending with a different CTA. "
-        "Give each an English body and a Chinese body_zh."
+        "Write 6 SMS variants (A-F) under 160 chars, each with a different angle and a different CTA. "
+        "Give each an English body and a Chinese body_zh with the same meaning."
     )

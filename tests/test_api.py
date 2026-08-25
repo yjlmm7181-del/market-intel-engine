@@ -99,11 +99,11 @@ def test_event_detail_and_generate_sms(client):
     sms = client.post(f"/api/events/{ev['id']}/generate-sms")
     assert sms.status_code == 200
     messages = sms.json()
-    assert len(messages) == 3
-    assert len({m["cta"] for m in messages}) == 3
+    assert len(messages) == 6
+    assert len({m["body"] for m in messages}) == 6
 
     all_sms = client.get("/api/sms").json()
-    assert len(all_sms) == 3
+    assert len(all_sms) == 6
 
     regen = client.post(f"/api/sms/{messages[0]['id']}/regenerate")
     assert regen.status_code == 200

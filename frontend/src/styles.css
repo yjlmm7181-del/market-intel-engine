@@ -76,19 +76,18 @@ body {
 
 .btn-outline {
   background: transparent;
-  border: 1px solid #2fd6a4;
-  color: #2fd6a4;
-  font-weight: 700;
-  padding: 10px 16px;
+  border: 1px solid #4a5568;
+  color: #aab2c5;
+  font-weight: 600;
+  padding: 6px 12px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .btn-outline:hover {
   color: #fff;
-  border-color: #7ee2b8;
-  background: rgba(47, 214, 164, 0.08);
+  border-color: #8b93a7;
 }
 
 h1 {

@@ -17,7 +17,7 @@ function SmsCard({ m, showZh }) {
   const [copied, setCopied] = useState(false)
 
   async function copy() {
-    const text = showZh && m.body_zh ? `${m.body}\n${m.body_zh}` : m.body
+    const text = showZh && m.body_zh ? `${m.body_zh}\n${m.body}` : m.body
     try {
       await navigator.clipboard.writeText(text)
     } catch (e) {
@@ -43,8 +43,14 @@ function SmsCard({ m, showZh }) {
           </button>
         </div>
       </div>
-      <p className="sms-body">{m.body}</p>
-      {showZh && m.body_zh && <p className="sms-body zh">{m.body_zh}</p>}
+      {showZh ? (
+        <>
+          <p className="sms-body zh">{m.body_zh || m.body}</p>
+          <p className="sms-body">{m.body}</p>
+        </>
+      ) : (
+        <p className="sms-body">{m.body}</p>
+      )}
     </div>
   )
 }
