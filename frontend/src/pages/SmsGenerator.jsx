@@ -7,10 +7,7 @@ export default function SmsGenerator() {
   const { t } = useLang()
   const [events, setEvents] = useState([])
   const [selected, setSelected] = useState(null)
-  const [sms, setSms] = useState(null)
-  const [bilingual, setBilingual] = useState(false)
-  const [style, setStyle] = useState('hook')
-  const [history, setHistory] = useState([])
+  const [deck, setDeck] = useState(null) // { deck_id, messages }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -21,15 +18,17 @@ export default function SmsGenerator() {
         if (d.events.length) setSelected(d.events[0].id)
       })
       .catch((e) => setError(e.message))
-    api.listSms().then(setHistory).catch(() => {})
   }, [])
 
-  async function generate(withZh) {
-    if (!selected) return
+  useEffect(() => {
+    if (selected) loadDeck()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
+
+  async function loadDeck() {
     setLoading(true)
-    setBilingual(withZh)
     try {
-      setSms(await api.generateSms(selected, style))
+      setDeck(await api.generateSmsDeck(selected))
     } catch (e) {
       setError(e.message)
     } finally {
@@ -37,12 +36,18 @@ export default function SmsGenerator() {
     }
   }
 
-  async function regen(id) {
+  async function refreshOne(version) {
+    if (!deck) return
     try {
-      setSms([await api.regenerateSms(id)])
+      const msg = await api.refreshSmsCard(selected, deck.deck_id, version)
+      setDeck((d) => ({ ...d, messages: d.messages.map((m) => (m.version === version ? msg : m)) }))
     } catch (e) {
       setError(e.message)
     }
+  }
+
+  async function refreshAll() {
+    await loadDeck()
   }
 
   return (
@@ -51,43 +56,17 @@ export default function SmsGenerator() {
       {error && <div className="state error">{error}</div>}
 
       <div className="card">
-        <label>{t('marketEvent')}</label>
         <div className="row">
           <select value={selected ?? ''} onChange={(e) => setSelected(Number(e.target.value))}>
             {events.map((e) => (
               <option key={e.id} value={e.id}>{e.title} ({t('heat')} {e.heat_score})</option>
             ))}
           </select>
-        </div>
-        <div className="row">
-          <div className="switch">
-            <button className={style === 'standard' ? 'active' : ''} onClick={() => setStyle('standard')}>{t('styleStandard')}</button>
-            <button className={style === 'hook' ? 'active' : ''} onClick={() => setStyle('hook')}>{t('styleHook')}</button>
-          </div>
-          <button onClick={() => generate(false)} disabled={loading || !selected}>
-            {loading ? t('generating') : t('generateSms')}
-          </button>
-          <button className="btn-outline" onClick={() => generate(true)} disabled={loading || !selected}>
-            {t('bilingual')}
+          <button onClick={refreshAll} disabled={loading || !selected}>
+            {loading ? t('generating') : t('refreshAll')}
           </button>
         </div>
-        {sms && <SmsList messages={sms} showZh={bilingual} />}
-      </div>
-
-      <div className="card">
-        <h2>{t('history')}</h2>
-        {history.length === 0 && <p className="muted">{t('noMessages')}</p>}
-        {history.map((m) => (
-          <div className="sms" key={m.id}>
-            <div className="sms-top">
-              <span className="version">V{m.version}</span>
-              <span className="cta">{m.cta}</span>
-            </div>
-            <p className="sms-body">{m.body}</p>
-            {m.body_zh && <p className="sms-body zh">{m.body_zh}</p>}
-            <button className="ghost" onClick={() => regen(m.id)}>{t('regenerate')}</button>
-          </div>
-        ))}
+        {deck && <SmsList messages={deck.messages} onRefresh={refreshOne} />}
       </div>
     </div>
   )

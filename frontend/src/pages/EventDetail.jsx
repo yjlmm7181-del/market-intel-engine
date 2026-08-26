@@ -10,7 +10,6 @@ export default function EventDetail() {
   const { t } = useLang()
   const [event, setEvent] = useState(null)
   const [sms, setSms] = useState(null)
-  const [bilingual, setBilingual] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -18,9 +17,8 @@ export default function EventDetail() {
     api.event(id).then(setEvent).catch((e) => setError(e.message))
   }, [id])
 
-  async function generate(withZh) {
+  async function generate() {
     setLoading(true)
-    setBilingual(!!withZh)
     try {
       setSms(await api.generateSms(id))
     } catch (e) {
@@ -68,14 +66,11 @@ export default function EventDetail() {
         </ul>
 
         <div className="actions">
-          <button onClick={() => generate(false)} disabled={loading}>
+          <button onClick={generate} disabled={loading}>
             {loading ? t('generating') : t('generateSms')}
           </button>
-          <button className="btn-outline" onClick={() => generate(true)} disabled={loading}>
-            {t('bilingual')}
-          </button>
         </div>
-        {sms && <SmsList messages={sms} showZh={bilingual} />}
+        {sms && <SmsList messages={sms} />}
       </div>
     </div>
   )

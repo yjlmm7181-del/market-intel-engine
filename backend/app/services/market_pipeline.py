@@ -11,6 +11,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from typing import Optional
+from uuid import uuid4
 
 from app.analyzers.ai_analyst import AIAnalyst
 from app.analyzers.event_engine import EventEngine, EventStock, MarketEventData
@@ -19,7 +20,7 @@ from app.collectors.mover_collector import MoverCollector, StockMover
 from app.collectors.news_collector import NewsCollector
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.generators.sms_generator import SmsGenerator
+from app.generators.sms_generator import SmsGenerator, VERSIONS
 from app.models.entities import MarketEvent, NewsItem, SmsMessage
 from app.providers.ai.openai_provider import AIProvider
 from app.providers.circuit_breaker import CircuitBreakerProvider
@@ -68,6 +69,7 @@ class MarketPipeline:
         self._cache_ts = 0.0
         self._cache_file = settings.cache_file
         self._refresh_lock = threading.Lock()
+        self._decks: dict = {}
 
     # -- collection --------------------------------------------------------
     def refresh(self) -> Snapshot:
@@ -242,26 +244,44 @@ class MarketPipeline:
         }
 
     # -- sms ---------------------------------------------------------------
-    def generate_sms(self, event_id: int, style: str = "hook") -> list[dict]:
+    def generate_sms(self, event_id: int) -> list[dict]:
         event_dict = self.get_event(event_id)
         if event_dict is None:
             return []
         event = self._dict_to_event(event_dict)
-        drafts = self.sms.generate(event, style)
-        saved: list[dict] = []
-        db = SessionLocal()
-        try:
-            for d in drafts:
-                msg = SmsMessage(event_id=event_id, version=d.version, body=d.body,
-                                 cta=d.cta, body_zh=d.body_zh)
-                db.add(msg)
-                db.flush()
-                saved.append({"id": msg.id, "event_id": event_id, "version": d.version,
-                              "body": d.body, "cta": d.cta, "body_zh": d.body_zh})
-            db.commit()
-        finally:
-            db.close()
-        return saved
+        self._seed_sms_history()
+        drafts = self.sms.generate_deck(event)
+        return self._persist_drafts(event_id, drafts)
+
+    def generate_sms_deck(self, event_id: int) -> dict:
+        event_dict = self.get_event(event_id)
+        if event_dict is None:
+            return {}
+        event = self._dict_to_event(event_dict)
+        self._seed_sms_history()
+        drafts = self.sms.generate_deck(event)
+        messages = self._persist_drafts(event_id, drafts)
+        deck_id = str(uuid4())
+        self._decks[deck_id] = {m["version"]: m["body"] for m in messages}
+        return {"deck_id": deck_id, "messages": messages}
+
+    def refresh_sms_card(self, event_id: int, deck_id: str, version: str) -> Optional[dict]:
+        deck = self._decks.get(deck_id)
+        if deck is None:
+            return None
+        event_dict = self.get_event(event_id)
+        if event_dict is None:
+            return None
+        event = self._dict_to_event(event_dict)
+        self._seed_sms_history()
+        avoid = [body for v, body in deck.items() if v != version]
+        draft = self.sms.generate_one(event, version, avoid=avoid)
+        msg = self._persist_draft(event_id, draft)
+        deck[version] = msg["body"]
+        return msg
+
+    def refresh_sms_all(self, event_id: int) -> dict:
+        return self.generate_sms_deck(event_id)
 
     def list_sms(self) -> list[dict]:
         db = SessionLocal()
@@ -277,6 +297,7 @@ class MarketPipeline:
         try:
             row = db.query(SmsMessage).filter(SmsMessage.id == sms_id).first()
             event_id = row.event_id if row is not None else None
+            version = row.version if row is not None and row.version in VERSIONS else "A"
         finally:
             db.close()
         if event_id is None:
@@ -284,21 +305,40 @@ class MarketPipeline:
         event_dict = self.get_event(event_id)
         if event_dict is None:
             return None
-        drafts = self.sms.generate(self._dict_to_event(event_dict))
-        d = drafts[0] if drafts else None
-        if d is None:
-            return None
+        self._seed_sms_history()
+        draft = self.sms.generate_one(self._dict_to_event(event_dict), version)
+        return self._persist_draft(event_id, draft)
+
+    # -- sms helpers -------------------------------------------------------
+    def _seed_sms_history(self) -> None:
+        try:
+            db = SessionLocal()
+            try:
+                rows = db.query(SmsMessage.body).order_by(SmsMessage.id.desc()).limit(200).all()
+                self.sms.seed_bodies([r[0] for r in rows])
+            finally:
+                db.close()
+        except Exception:
+            pass
+
+    def _persist_drafts(self, event_id: int, drafts) -> list[dict]:
+        saved: list[dict] = []
         db = SessionLocal()
         try:
-            msg = SmsMessage(event_id=event_id, version="R", body=d.body, cta=d.cta, body_zh=d.body_zh)
-            db.add(msg)
-            db.flush()
-            out = {"id": msg.id, "event_id": event_id, "version": "R", "body": d.body,
-                   "cta": d.cta, "body_zh": d.body_zh}
+            for d in drafts:
+                msg = SmsMessage(event_id=event_id, version=d.version, body=d.body,
+                                 cta=d.cta, body_zh=d.body_zh)
+                db.add(msg)
+                db.flush()
+                saved.append({"id": msg.id, "event_id": event_id, "version": d.version,
+                              "body": d.body, "cta": d.cta, "body_zh": d.body_zh})
             db.commit()
-            return out
         finally:
             db.close()
+        return saved
+
+    def _persist_draft(self, event_id: int, draft) -> dict:
+        return self._persist_drafts(event_id, [draft])[0]
 
     def analyze_event(self, event_id: int) -> Optional[dict]:
         db = SessionLocal()

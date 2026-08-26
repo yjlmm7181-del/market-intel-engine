@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
 from app.analyzers.ai_analyst import AIAnalyst
 from app.analyzers.event_engine import EventStock, MarketEventData
-from app.generators.sms_generator import CTAS, SmsGenerator
+from app.generators.sms_generator import CTA_SET, FORBIDDEN, SmsGenerator, VERSIONS
 from app.providers.ai.openai_provider import AIProvider
 
 
@@ -33,17 +33,31 @@ def test_template_analyst_falls_back_without_key():
     assert "NVDA" in text
 
 
-def test_sms_template_multiple_distinct_versions():
-    gen = SmsGenerator(AIProvider(api_key=""))
-    drafts = gen.generate(_event())
+def test_sms_deck_distinct_natural():
+    gen = SmsGenerator()
+    drafts = gen.generate_deck(_event())
     assert len(drafts) == 7
-    for d in drafts:
-        assert d.cta in CTAS or d.cta == "Yes"
-        assert d.body
-        assert d.body_zh
-        assert len(d.body) < 200
     bodies = [d.body for d in drafts]
-    assert len(set(bodies)) == len(bodies)  # no duplicated content
+    assert len(set(bodies)) == 7  # no duplicated content
+    for d in drafts:
+        assert d.version in VERSIONS
+        assert d.cta in CTA_SET
+        assert d.body and d.body_zh
+        assert '%' not in d.body          # no percentages
+        assert 'STOP' in d.body           # STOP opt-out preserved
+        low = d.body.lower()
+        assert not any(w in low for w in FORBIDDEN)
+
+
+def test_sms_refresh_one_avoids_history():
+    gen = SmsGenerator()
+    event = _event()
+    deck = gen.generate_deck(event)
+    others = [d.body for d in deck if d.version != "A"]
+    fresh = gen.generate_one(event, "A", avoid=others)
+    assert fresh.body not in others
+    assert fresh.cta == "MORE"
+    assert 'STOP' in fresh.body
 
 
 def test_ai_analyst_uses_ai_when_available():

@@ -7,7 +7,10 @@ async function fetchJSON(path, options) {
 export const api = {
   overview: () => fetchJSON('/api/market/overview'),
   event: (id) => fetchJSON(`/api/events/${id}`),
-  generateSms: (id, style) => fetchJSON(`/api/events/${id}/generate-sms?style=${style || 'hook'}`, { method: 'POST' }),
+  generateSms: (id) => fetchJSON(`/api/events/${id}/generate-sms`, { method: 'POST' }),
+  generateSmsDeck: (id) => fetchJSON(`/api/events/${id}/generate-sms-deck`, { method: 'POST' }),
+  refreshSmsCard: (id, deckId, version) => fetchJSON(`/api/events/${id}/sms/${version}/refresh?deck_id=${deckId}`, { method: 'POST' }),
+  refreshSmsAll: (id) => fetchJSON(`/api/events/${id}/sms/refresh-all`, { method: 'POST' }),
   listSms: () => fetchJSON('/api/sms'),
   regenerateSms: (id) => fetchJSON(`/api/sms/${id}/regenerate`, { method: 'POST' }),
 }

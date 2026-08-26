@@ -60,6 +60,11 @@ class SmsOut(BaseModel):
     body_zh: str = ""
 
 
+class SmsDeckOut(BaseModel):
+    deck_id: str
+    messages: list[SmsOut]
+
+
 class OverviewOut(BaseModel):
     indexes: list[IndexQuoteOut]
     movers: list[MoverOut]

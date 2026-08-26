@@ -12,12 +12,22 @@ function CopyIcon({ copied }) {
   )
 }
 
-function SmsCard({ m, showZh }) {
+function RefreshIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+         stroke="#8b93a7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
+      <path d="M21 3v5h-5" />
+    </svg>
+  )
+}
+
+function SmsCard({ m, onRefresh }) {
   const { t } = useLang()
   const [copied, setCopied] = useState(false)
 
   async function copy() {
-    const text = showZh && m.body_zh ? `${m.body_zh}\n${m.body}` : m.body
+    const text = m.body_zh ? `${m.body_zh}\n${m.body}` : m.body
     try {
       await navigator.clipboard.writeText(text)
     } catch (e) {
@@ -41,25 +51,24 @@ function SmsCard({ m, showZh }) {
           <button className="copy-btn" onClick={copy} title={copied ? '✓' : 'Copy'}>
             <CopyIcon copied={copied} />
           </button>
+          {onRefresh && (
+            <button className="copy-btn" onClick={() => onRefresh(m.version)} title={t('refresh')}>
+              <RefreshIcon />
+            </button>
+          )}
         </div>
       </div>
-      {showZh ? (
-        <>
-          <p className="sms-body zh">{m.body_zh || m.body}</p>
-          <p className="sms-body">{m.body}</p>
-        </>
-      ) : (
-        <p className="sms-body">{m.body}</p>
-      )}
+      <p className="sms-body zh">{m.body_zh || m.body}</p>
+      <p className="sms-body">{m.body}</p>
     </div>
   )
 }
 
-export default function SmsList({ messages, showZh = false }) {
+export default function SmsList({ messages, onRefresh }) {
   return (
     <div className="sms-list">
       {messages.map((m) => (
-        <SmsCard key={m.id ?? m.version} m={m} showZh={showZh} />
+        <SmsCard key={m.id ?? m.version} m={m} onRefresh={onRefresh} />
       ))}
     </div>
   )
