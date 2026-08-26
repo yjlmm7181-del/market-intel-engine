@@ -244,28 +244,28 @@ class MarketPipeline:
         }
 
     # -- sms ---------------------------------------------------------------
-    def generate_sms(self, event_id: int) -> list[dict]:
+    def generate_sms(self, event_id: int, style: str = "hook") -> list[dict]:
         event_dict = self.get_event(event_id)
         if event_dict is None:
             return []
         event = self._dict_to_event(event_dict)
         self._seed_sms_history()
-        drafts = self.sms.generate_deck(event)
+        drafts = self.sms.generate_deck(event, style)
         return self._persist_drafts(event_id, drafts)
 
-    def generate_sms_deck(self, event_id: int) -> dict:
+    def generate_sms_deck(self, event_id: int, style: str = "hook") -> dict:
         event_dict = self.get_event(event_id)
         if event_dict is None:
             return {}
         event = self._dict_to_event(event_dict)
         self._seed_sms_history()
-        drafts = self.sms.generate_deck(event)
+        drafts = self.sms.generate_deck(event, style)
         messages = self._persist_drafts(event_id, drafts)
         deck_id = str(uuid4())
         self._decks[deck_id] = {m["version"]: m["body"] for m in messages}
         return {"deck_id": deck_id, "messages": messages}
 
-    def refresh_sms_card(self, event_id: int, deck_id: str, version: str) -> Optional[dict]:
+    def refresh_sms_card(self, event_id: int, deck_id: str, version: str, style: str = "hook") -> Optional[dict]:
         deck = self._decks.get(deck_id)
         if deck is None:
             return None
@@ -275,13 +275,13 @@ class MarketPipeline:
         event = self._dict_to_event(event_dict)
         self._seed_sms_history()
         avoid = [body for v, body in deck.items() if v != version]
-        draft = self.sms.generate_one(event, version, avoid=avoid)
+        draft = self.sms.generate_one(event, version, style, avoid=avoid)
         msg = self._persist_draft(event_id, draft)
         deck[version] = msg["body"]
         return msg
 
-    def refresh_sms_all(self, event_id: int) -> dict:
-        return self.generate_sms_deck(event_id)
+    def refresh_sms_all(self, event_id: int, style: str = "hook") -> dict:
+        return self.generate_sms_deck(event_id, style)
 
     def list_sms(self) -> list[dict]:
         db = SessionLocal()

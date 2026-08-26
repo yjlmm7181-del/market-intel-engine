@@ -8,6 +8,7 @@ export default function SmsGenerator() {
   const [events, setEvents] = useState([])
   const [selected, setSelected] = useState(null)
   const [deck, setDeck] = useState(null) // { deck_id, messages }
+  const [style, setStyle] = useState('hook')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -23,12 +24,12 @@ export default function SmsGenerator() {
   useEffect(() => {
     if (selected) loadDeck()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected])
+  }, [selected, style])
 
   async function loadDeck() {
     setLoading(true)
     try {
-      setDeck(await api.generateSmsDeck(selected))
+      setDeck(await api.generateSmsDeck(selected, style))
     } catch (e) {
       setError(e.message)
     } finally {
@@ -39,7 +40,7 @@ export default function SmsGenerator() {
   async function refreshOne(version) {
     if (!deck) return
     try {
-      const msg = await api.refreshSmsCard(selected, deck.deck_id, version)
+      const msg = await api.refreshSmsCard(selected, deck.deck_id, version, style)
       setDeck((d) => ({ ...d, messages: d.messages.map((m) => (m.version === version ? msg : m)) }))
     } catch (e) {
       setError(e.message)
@@ -62,6 +63,10 @@ export default function SmsGenerator() {
               <option key={e.id} value={e.id}>{e.title} ({t('heat')} {e.heat_score})</option>
             ))}
           </select>
+          <div className="switch">
+            <button className={style === 'standard' ? 'active' : ''} onClick={() => setStyle('standard')}>{t('styleStandard')}</button>
+            <button className={style === 'hook' ? 'active' : ''} onClick={() => setStyle('hook')}>{t('styleHook')}</button>
+          </div>
           <button onClick={refreshAll} disabled={loading || !selected}>
             {loading ? t('generating') : t('refreshAll')}
           </button>

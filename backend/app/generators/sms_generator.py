@@ -20,6 +20,8 @@ from app.analyzers.event_engine import MarketEventData
 VERSIONS = ["A", "B", "C", "D", "E", "F", "G"]
 VERSION_CTA = {"A": "MORE", "B": "LIST", "C": "WATCH", "D": "FULL", "E": "BULL", "F": "OK", "G": "Yes"}
 CTA_SET = {"MORE", "LIST", "WATCH", "FULL", "BULL", "OK", "Yes"}
+STYLES = ["standard", "hook"]
+DEFAULT_STYLE = "hook"
 
 FORBIDDEN = [
     "guaranteed", "risk-free", "risk free", "easy money", "guaranteed winner",
@@ -78,7 +80,8 @@ THEME_SUBJECTS = {
 DEFAULT_SUBJECTS = [("the market", "大盘")]
 
 # Natural sentence templates. {S} is the English subject, {Z} the Chinese one.
-TEMPLATES = [
+# "hook" = punchy reply-driven; "standard" = plain information-forward.
+HOOK_TEMPLATES = [
     ("{S} names are getting attention today, with several stocks testing session highs.",
      "{Z}板块今天成为市场关注焦点，几只标的正在测试日内高点。"),
     ("Volume is separating a few names from the {S} group.",
@@ -104,6 +107,35 @@ TEMPLATES = [
     ("There's a catalyst behind the {S} move this session.",
      "今天{Z}板块的行情背后有催化剂推动。"),
 ]
+
+STANDARD_TEMPLATES = [
+    ("{S} names are moving higher today.",
+     "{Z}板块今天走高。"),
+    ("Trading is picking up across the {S} group.",
+     "{Z}板块成交活跃度在提升。"),
+    ("The {S} group is drawing interest this session.",
+     "{Z}板块今天吸引了资金关注。"),
+    ("Several {S} names are climbing on solid volume.",
+     "几只{Z}标的在放量上涨。"),
+    ("The {S} group is holding steady near recent levels.",
+     "{Z}板块在近期点位附近企稳。"),
+    ("Money is rotating toward {S} today.",
+     "资金今天在轮动流入{Z}板块。"),
+    ("The {S} complex is outperforming the tape.",
+     "{Z}板块跑赢大盘。"),
+    ("A few {S} names are standing out this session.",
+     "今天{Z}板块里有几只标的尤为突出。"),
+    ("The {S} group is firm into midday.",
+     "{Z}板块在午盘前保持坚挺。"),
+    ("Sentiment is improving across {S}.",
+     "{Z}板块情绪正在好转。"),
+    ("The {S} trade is steady, with volume confirming.",
+     "{Z}行情稳中有升，成交量予以确认。"),
+    ("There is a clear bid under the {S} group today.",
+     "今天{Z}板块下方有明显的买盘支撑。"),
+]
+
+TEMPLATES_BY_STYLE = {"hook": HOOK_TEMPLATES, "standard": STANDARD_TEMPLATES}
 
 CTA_LINES = {
     "MORE": ("Reply MORE for the names.", "回复 MORE 获取名单。"),
@@ -143,24 +175,26 @@ class SmsGenerator:
             if b:
                 self._history.add(b)
 
-    def generate_deck(self, event: MarketEventData) -> list[SmsDraft]:
+    def generate_deck(self, event: MarketEventData, style: str = DEFAULT_STYLE) -> list[SmsDraft]:
+        templates = TEMPLATES_BY_STYLE.get(style, HOOK_TEMPLATES)
         subjects = THEME_SUBJECTS.get(event.theme, DEFAULT_SUBJECTS)
         drafts: list[SmsDraft] = []
         used_templates: set[int] = set()
         used_subjects: set[int] = set()
         for version in VERSIONS:
-            drafts.append(self._build_fresh(event, subjects, version, used_templates, used_subjects, set()))
+            drafts.append(self._build_fresh(templates, subjects, version, used_templates, used_subjects, set()))
         return drafts
 
-    def generate_one(self, event: MarketEventData, version: str, avoid=()) -> SmsDraft:
+    def generate_one(self, event: MarketEventData, version: str, style: str = DEFAULT_STYLE, avoid=()) -> SmsDraft:
         if version not in VERSION_CTA:
             version = "A"
+        templates = TEMPLATES_BY_STYLE.get(style, HOOK_TEMPLATES)
         subjects = THEME_SUBJECTS.get(event.theme, DEFAULT_SUBJECTS)
-        return self._build_fresh(event, subjects, version, set(), set(), set(avoid))
+        return self._build_fresh(templates, subjects, version, set(), set(), set(avoid))
 
-    def _build_fresh(self, event, subjects, version, used_templates, used_subjects, avoid) -> SmsDraft:
+    def _build_fresh(self, templates, subjects, version, used_templates, used_subjects, avoid) -> SmsDraft:
         cta = VERSION_CTA[version]
-        tidxs = list(range(len(TEMPLATES)))
+        tidxs = list(range(len(templates)))
         random.shuffle(tidxs)
         sidxs = list(range(len(subjects)))
         random.shuffle(sidxs)
@@ -172,7 +206,7 @@ class SmsGenerator:
             for sidx in sidxs:
                 if sidx in used_subjects:
                     continue
-                body, body_zh = _render(TEMPLATES[tidx], subjects[sidx], cta)
+                body, body_zh = _render(templates[tidx], subjects[sidx], cta)
                 if body in self._history or body in avoid or _forbidden(body):
                     continue
                 used_templates.add(tidx)
@@ -185,7 +219,7 @@ class SmsGenerator:
             if tidx in used_templates:
                 continue
             for sidx in sidxs:
-                body, body_zh = _render(TEMPLATES[tidx], subjects[sidx], cta)
+                body, body_zh = _render(templates[tidx], subjects[sidx], cta)
                 if body in self._history or body in avoid or _forbidden(body):
                     continue
                 used_templates.add(tidx)
@@ -193,7 +227,7 @@ class SmsGenerator:
                 return SmsDraft(version, body, cta, body_zh)
 
         # fallback (should be rare)
-        body, body_zh = _render(TEMPLATES[tidxs[0]], subjects[sidxs[0]], cta)
+        body, body_zh = _render(templates[tidxs[0]], subjects[sidxs[0]], cta)
         self._history.add(body)
         return SmsDraft(version, body, cta, body_zh)
 
