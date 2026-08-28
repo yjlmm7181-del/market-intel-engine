@@ -18,8 +18,9 @@ from dataclasses import dataclass
 from app.analyzers.event_engine import MarketEventData
 
 VERSIONS = ["A", "B", "C", "D", "E", "F", "G"]
-VERSION_CTA = {"A": "MORE", "B": "LIST", "C": "WATCH", "D": "FULL", "E": "BULL", "F": "OK", "G": "Yes"}
-CTA_SET = {"MORE", "LIST", "WATCH", "FULL", "BULL", "OK", "Yes"}
+HOOK_VERSIONS = ["A", "B", "C", "D", "E", "F", "G", "H"]
+VERSION_CTA = {"A": "MORE", "B": "LIST", "C": "WATCH", "D": "FULL", "E": "BULL", "F": "OK", "G": "Yes", "H": "START"}
+CTA_SET = {"MORE", "LIST", "WATCH", "FULL", "BULL", "OK", "Yes", "START"}
 STYLES = ["standard", "hook", "urgent"]
 DEFAULT_STYLE = "hook"
 
@@ -29,6 +30,9 @@ FORBIDDEN = [
     "buy now", "guaranteed profit", "guarantee", "sure win", "sure thing",
     "can't lose", "cannot lose", "double your money", "get rich",
 ]
+
+STOP_EN = "Reply STOP to opt out."
+STOP_ZH = "回复 STOP 取消订阅。"
 
 START_STOP_LINES = [
     ("Reply START to subscribe; reply STOP to cancel.", "回复 START 加入订阅；回复 STOP 取消订阅。"),
@@ -235,12 +239,18 @@ def _render(template, ctx, cta, style) -> tuple[str, str]:
     for key, val in ctx.items():
         en_sent = en_sent.replace('{' + key + '}', val)
         zh_sent = zh_sent.replace('{' + key + '}', val)
-    if style == "hook":
-        # hook: AI-agent voice ends with a randomized START/STOP line
+    if style == "hook" and cta == "START":
+        # H card: AI-agent voice ends with a randomized START/STOP line
         start_en, start_zh = random.choice(START_STOP_LINES)
         body = f"{en_sent} {start_en}"
         body_zh = f"{zh_sent}{start_zh}"
+    elif style == "hook":
+        # A-G: AI-agent voice + original CTA + STOP
+        cta_en, cta_zh = CTA_LINES[cta]
+        body = f"{en_sent} {cta_en} {STOP_EN}"
+        body_zh = f"{zh_sent}{cta_zh}{STOP_ZH}"
     else:
+        # standard & urgent: CTA + disclaimer
         cta_en, cta_zh = CTA_LINES[cta]
         body = f"{en_sent} {cta_en}"
         body_zh = f"{zh_sent}{cta_zh}"
@@ -281,22 +291,25 @@ class SmsGenerator:
     def generate_deck(self, event: MarketEventData, style: str = DEFAULT_STYLE) -> list[SmsDraft]:
         templates = TEMPLATES_BY_STYLE.get(style, HOOK_TEMPLATES)
         subjects = THEME_SUBJECTS.get(event.theme, DEFAULT_SUBJECTS)
+        versions = HOOK_VERSIONS if style == "hook" else VERSIONS
         drafts: list[SmsDraft] = []
         used_templates: set[int] = set()
         used_subjects: set[int] = set()
-        for version in VERSIONS:
+        for version in versions:
             drafts.append(self._build_fresh(templates, subjects, event, style, version, used_templates, used_subjects, set()))
         return drafts
 
     def generate_one(self, event: MarketEventData, version: str, style: str = DEFAULT_STYLE, avoid=()) -> SmsDraft:
         if version not in VERSION_CTA:
             version = "A"
+        if version == "H" and style != "hook":
+            version = "A"
         templates = TEMPLATES_BY_STYLE.get(style, HOOK_TEMPLATES)
         subjects = THEME_SUBJECTS.get(event.theme, DEFAULT_SUBJECTS)
         return self._build_fresh(templates, subjects, event, style, version, set(), set(), set(avoid))
 
     def _build_fresh(self, templates, subjects, event, style, version, used_templates, used_subjects, avoid) -> SmsDraft:
-        cta = "START" if style == "hook" else VERSION_CTA[version]
+        cta = VERSION_CTA[version]
         tidxs = list(range(len(templates)))
         random.shuffle(tidxs)
         sidxs = list(range(len(subjects)))

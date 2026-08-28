@@ -105,15 +105,15 @@ def test_event_detail_and_generate_sms(client):
     sms = client.post(f"/api/events/{ev['id']}/generate-sms")
     assert sms.status_code == 200
     messages = sms.json()
-    assert len(messages) == 7
-    assert len({m["body"] for m in messages}) == 7
+    assert len(messages) == 8
+    assert len({m["body"] for m in messages}) == 8
     assert all('%' not in m["body"] for m in messages)
     assert all('STOP' in m["body"] for m in messages)
 
     # deck + single-card refresh + refresh-all
     deck = client.post(f"/api/events/{ev['id']}/generate-sms-deck").json()
     assert "deck_id" in deck
-    assert len(deck["messages"]) == 7
+    assert len(deck["messages"]) == 8
 
     refreshed = client.post(
         f"/api/events/{ev['id']}/sms/A/refresh?deck_id={deck['deck_id']}"
@@ -123,11 +123,11 @@ def test_event_detail_and_generate_sms(client):
     assert refreshed["body"] != old_a["body"]
 
     deck2 = client.post(f"/api/events/{ev['id']}/sms/refresh-all").json()
-    assert len(deck2["messages"]) == 7
+    assert len(deck2["messages"]) == 8
     assert deck2["deck_id"] != deck["deck_id"]
 
     all_sms = client.get("/api/sms").json()
-    assert len(all_sms) >= 7
+    assert len(all_sms) >= 8
 
     regen = client.post(f"/api/sms/{messages[0]['id']}/regenerate")
     assert regen.status_code == 200
