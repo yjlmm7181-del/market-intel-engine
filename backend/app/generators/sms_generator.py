@@ -30,8 +30,13 @@ FORBIDDEN = [
     "can't lose", "cannot lose", "double your money", "get rich",
 ]
 
-STOP_EN = "Reply STOP to opt out."
-STOP_ZH = "回复 STOP 取消订阅。"
+START_STOP_LINES = [
+    ("Reply START to subscribe; reply STOP to cancel.", "回复 START 加入订阅；回复 STOP 取消订阅。"),
+    ("Reply START to join; reply STOP to cancel.", "回复 START 加入参与；回复 STOP 取消参与。"),
+    ("Reply START to get updates; reply STOP to opt out.", "回复 START 接收更新；回复 STOP 退订。"),
+    ("Reply START to continue; reply STOP to stop.", "回复 START 继续接收；回复 STOP 停止。"),
+    ("Reply START to keep getting these; reply STOP to cancel.", "回复 START 继续接收通知；回复 STOP 取消。"),
+]
 
 # Event theme -> natural market-subject phrases (English, Chinese). Kept bare
 # (no "the"/"group") because templates append their own nouns.
@@ -105,23 +110,40 @@ SYMBOL_ZH_NAMES = {
     "HON": "霍尼韦尔", "LMT": "洛克希德马丁", "RTX": "雷神",
 }
 
-# Natural sentence templates. {S}/{Z} = theme subject; {NAMES}/{NAMES_ZH} and
-# {DIR}/{DIR_ZH} = concrete stock names + direction (hook style only).
+# Hook style = "AI agent" voice. {AGENT}/{AGENT_ZH} = agent name,
+# {STOCK}/{STOCK_ZH} = a concrete stock, {SIGNAL}/{SIGNAL_ZH} = a technical signal.
+AGENT_NAMES = [
+    ("Momentum Scout", "动量侦察员"),
+    ("Alpha Screener", "阿尔法筛选器"),
+    ("Signal Watch", "信号观察员"),
+]
+
+SIGNALS = [
+    ("broke above its 20-day moving average", "突破了 20 天均线"),
+    ("hit a one-year high on strong volume", "放量创一年新高"),
+    ("saw a pickup in buying activity", "买盘明显增加"),
+    ("broke out on above-average volume", "放量突破"),
+    ("reached a fresh 52-week high", "创下 52 周新高"),
+    ("climbed for a third straight session", "连续第三日上涨"),
+    ("cleared a key resistance level", "突破了关键阻力位"),
+    ("showed unusual accumulation", "出现异常吸筹"),
+]
+
 HOOK_TEMPLATES = [
-    ("{NAMES} {DIR} today. Why? Add me and I'll share the details.",
-     "{NAMES_ZH}{DIR_ZH}，原因是什么？添加我，与你分享详情。"),
-    ("Wondering why {NAMES} {DIR}? Add me and I'll share the details.",
-     "好奇{NAMES_ZH}为什么{DIR_ZH}？添加我，与你分享详情。"),
-    ("Notice {NAMES} {DIR}? Want to know why? Add me and I'll share the details.",
-     "注意到{NAMES_ZH}{DIR_ZH}了吗？想知道原因？添加我，与你分享详情。"),
-    ("{NAMES} {DIR} — any idea why? Add me and I'll share the details.",
-     "{NAMES_ZH}{DIR_ZH}——你知道为什么吗？添加我，与你分享详情。"),
-    ("{NAMES} {DIR} — want the full story? Add me and I'll share the details.",
-     "{NAMES_ZH}{DIR_ZH}——想要完整分析吗？添加我，与你分享详情。"),
-    ("Something's brewing in {NAMES}. Add me and I'll share why.",
-     "{NAMES_ZH}里有点东西在酝酿。添加我，与你分享原因。"),
-    ("The {NAMES} move has people asking why. Add me and I'll share the details.",
-     "{NAMES_ZH}的行情让很多人想问为什么。添加我，与你分享详情。"),
+    ("AI agent \"{AGENT}\" spotted {STOCK} {SIGNAL}.",
+     "AI 代理「{AGENT_ZH}」发现 {STOCK_ZH}{SIGNAL_ZH}。"),
+    ("Your AI agent finished its daily scan: {STOCK} {SIGNAL}.",
+     "您的 AI 代理完成每日扫描：{STOCK_ZH}{SIGNAL_ZH}。"),
+    ("AI performance review complete — {STOCK} {SIGNAL}.",
+     "人工智能评估已完成——{STOCK_ZH}{SIGNAL_ZH}。"),
+    ("Your AI agent just flagged {STOCK}, which {SIGNAL}.",
+     "您的 AI 代理刚标记了 {STOCK_ZH}，该股{SIGNAL_ZH}。"),
+    ("Scan complete — {STOCK} {SIGNAL}, per your AI agent.",
+     "扫描完成——据您的 AI 代理，{STOCK_ZH}{SIGNAL_ZH}。"),
+    ("AI alert: {STOCK} {SIGNAL}.",
+     "AI 提醒：{STOCK_ZH}{SIGNAL_ZH}。"),
+    ("Daily AI scan found {STOCK} {SIGNAL}.",
+     "每日 AI 扫描发现 {STOCK_ZH}{SIGNAL_ZH}。"),
 ]
 
 STANDARD_TEMPLATES = [
@@ -192,18 +214,17 @@ class SmsDraft:
 
 
 def _hook_ctx(event, subject) -> dict:
-    stocks = sorted(event.stocks, key=lambda s: abs(s.change_rate or 0), reverse=True)[:3]
+    stocks = sorted(event.stocks, key=lambda s: abs(s.change_rate or 0), reverse=True)
     if not stocks:
-        return {"S": subject[0], "Z": subject[1]}
-    changes = [s.change_rate for s in stocks if s.change_rate is not None]
-    falling = (sum(changes) / len(changes)) < 0 if changes else False
-    en_names = ", ".join((s.name or s.symbol) for s in stocks)
-    zh_names = "、".join(SYMBOL_ZH_NAMES.get(s.symbol, s.name or s.symbol) for s in stocks)
+        return {}
+    stock = stocks[0]
+    agent_en, agent_zh = random.choice(AGENT_NAMES)
+    signal_en, signal_zh = random.choice(SIGNALS)
     return {
-        "S": subject[0], "Z": subject[1],
-        "NAMES": en_names, "NAMES_ZH": zh_names,
-        "DIR": "are falling" if falling else "are rising",
-        "DIR_ZH": "下跌" if falling else "走高",
+        "AGENT": agent_en, "AGENT_ZH": agent_zh,
+        "STOCK": stock.name or stock.symbol,
+        "STOCK_ZH": SYMBOL_ZH_NAMES.get(stock.symbol, stock.name or stock.symbol),
+        "SIGNAL": signal_en, "SIGNAL_ZH": signal_zh,
     }
 
 
@@ -214,14 +235,15 @@ def _render(template, ctx, cta, style) -> tuple[str, str]:
     for key, val in ctx.items():
         en_sent = en_sent.replace('{' + key + '}', val)
         zh_sent = zh_sent.replace('{' + key + '}', val)
-    cta_en, cta_zh = CTA_LINES[cta]
-    body = f"{en_sent} {cta_en}"
-    body_zh = f"{zh_sent}{cta_zh}"
-    # STOP is kept only on the hook style
     if style == "hook":
-        body += f" {STOP_EN}"
-        body_zh += STOP_ZH
+        # hook: AI-agent voice ends with a randomized START/STOP line
+        start_en, start_zh = random.choice(START_STOP_LINES)
+        body = f"{en_sent} {start_en}"
+        body_zh = f"{zh_sent}{start_zh}"
     else:
+        cta_en, cta_zh = CTA_LINES[cta]
+        body = f"{en_sent} {cta_en}"
+        body_zh = f"{zh_sent}{cta_zh}"
         # "仅限数据" disclaimer on standard & urgent (not hook), random position
         body, body_zh = _add_disclaimer(body, body_zh)
     return body, body_zh
@@ -274,7 +296,7 @@ class SmsGenerator:
         return self._build_fresh(templates, subjects, event, style, version, set(), set(), set(avoid))
 
     def _build_fresh(self, templates, subjects, event, style, version, used_templates, used_subjects, avoid) -> SmsDraft:
-        cta = VERSION_CTA[version]
+        cta = "START" if style == "hook" else VERSION_CTA[version]
         tidxs = list(range(len(templates)))
         random.shuffle(tidxs)
         sidxs = list(range(len(subjects)))

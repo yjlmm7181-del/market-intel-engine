@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 
 from app.analyzers.ai_analyst import AIAnalyst
 from app.analyzers.event_engine import EventStock, MarketEventData
-from app.generators.sms_generator import CTA_SET, FORBIDDEN, SmsGenerator, VERSIONS
+from app.generators.sms_generator import FORBIDDEN, SmsGenerator, VERSIONS
 from app.providers.ai.openai_provider import AIProvider
 
 
@@ -41,7 +41,7 @@ def test_sms_deck_distinct_natural():
     assert len(set(bodies)) == 7  # no duplicated content
     for d in drafts:
         assert d.version in VERSIONS
-        assert d.cta in CTA_SET
+        assert d.cta == "START"           # hook style uses START
         assert d.body and d.body_zh
         assert '%' not in d.body          # no percentages
         assert 'STOP' in d.body           # STOP opt-out preserved
@@ -56,7 +56,7 @@ def test_sms_refresh_one_avoids_history():
     others = [d.body for d in deck if d.version != "A"]
     fresh = gen.generate_one(event, "A", avoid=others)
     assert fresh.body not in others
-    assert fresh.cta == "MORE"
+    assert fresh.cta == "START"
     assert 'STOP' in fresh.body
 
 
