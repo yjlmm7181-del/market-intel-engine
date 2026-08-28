@@ -17,8 +17,7 @@ from dataclasses import dataclass
 
 from app.analyzers.event_engine import MarketEventData
 
-VERSIONS = ["A", "B", "C", "D", "E", "F", "G"]
-HOOK_VERSIONS = ["A", "B", "C", "D", "E", "F", "G", "H"]
+VERSIONS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 VERSION_CTA = {"A": "MORE", "B": "LIST", "C": "WATCH", "D": "FULL", "E": "BULL", "F": "OK", "G": "Yes", "H": "START"}
 CTA_SET = {"MORE", "LIST", "WATCH", "FULL", "BULL", "OK", "Yes", "START"}
 STYLES = ["standard", "hook", "urgent"]
@@ -123,12 +122,12 @@ AGENT_NAMES = [
 ]
 
 SIGNALS = [
-    ("broke above its 20-day moving average", "突破了 20 天均线"),
-    ("hit a one-year high on strong volume", "放量创一年新高"),
-    ("saw a pickup in buying activity", "买盘明显增加"),
+    ("broke above its 20-day moving average", "股价突破了 20 天平均价格线"),
+    ("reached a one-year high on above-average volume", "股价以高于平常的幅度达到了一年来的最高价"),
+    ("saw a pickup in buying activity", "购买活动有所增加"),
     ("broke out on above-average volume", "放量突破"),
     ("reached a fresh 52-week high", "创下 52 周新高"),
-    ("climbed for a third straight session", "连续第三日上涨"),
+    ("climbed for a third straight session", "连续第三个交易日上涨"),
     ("cleared a key resistance level", "突破了关键阻力位"),
     ("showed unusual accumulation", "出现异常吸筹"),
 ]
@@ -239,13 +238,13 @@ def _render(template, ctx, cta, style) -> tuple[str, str]:
     for key, val in ctx.items():
         en_sent = en_sent.replace('{' + key + '}', val)
         zh_sent = zh_sent.replace('{' + key + '}', val)
-    if style == "hook" and cta == "START":
-        # H card: AI-agent voice ends with a randomized START/STOP line
+    if cta == "START":
+        # H card (any style): randomized START/STOP line
         start_en, start_zh = random.choice(START_STOP_LINES)
         body = f"{en_sent} {start_en}"
         body_zh = f"{zh_sent}{start_zh}"
     elif style == "hook":
-        # A-G: AI-agent voice + original CTA + STOP
+        # hook A-G: concrete names + original CTA + STOP
         cta_en, cta_zh = CTA_LINES[cta]
         body = f"{en_sent} {cta_en} {STOP_EN}"
         body_zh = f"{zh_sent}{cta_zh}{STOP_ZH}"
@@ -291,18 +290,15 @@ class SmsGenerator:
     def generate_deck(self, event: MarketEventData, style: str = DEFAULT_STYLE) -> list[SmsDraft]:
         templates = TEMPLATES_BY_STYLE.get(style, HOOK_TEMPLATES)
         subjects = THEME_SUBJECTS.get(event.theme, DEFAULT_SUBJECTS)
-        versions = HOOK_VERSIONS if style == "hook" else VERSIONS
         drafts: list[SmsDraft] = []
         used_templates: set[int] = set()
         used_subjects: set[int] = set()
-        for version in versions:
+        for version in VERSIONS:
             drafts.append(self._build_fresh(templates, subjects, event, style, version, used_templates, used_subjects, set()))
         return drafts
 
     def generate_one(self, event: MarketEventData, version: str, style: str = DEFAULT_STYLE, avoid=()) -> SmsDraft:
         if version not in VERSION_CTA:
-            version = "A"
-        if version == "H" and style != "hook":
             version = "A"
         templates = TEMPLATES_BY_STYLE.get(style, HOOK_TEMPLATES)
         subjects = THEME_SUBJECTS.get(event.theme, DEFAULT_SUBJECTS)
