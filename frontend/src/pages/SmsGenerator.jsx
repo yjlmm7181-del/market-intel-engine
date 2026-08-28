@@ -66,6 +66,7 @@ export default function SmsGenerator() {
           <div className="switch">
             <button className={style === 'standard' ? 'active' : ''} onClick={() => setStyle('standard')}>{t('styleStandard')}</button>
             <button className={style === 'hook' ? 'active' : ''} onClick={() => setStyle('hook')}>{t('styleHook')}</button>
+            <button className={style === 'urgent' ? 'active' : ''} onClick={() => setStyle('urgent')}>{t('styleUrgent')}</button>
           </div>
           <button onClick={refreshAll} disabled={loading || !selected}>
             {loading ? t('generating') : t('refreshAll')}

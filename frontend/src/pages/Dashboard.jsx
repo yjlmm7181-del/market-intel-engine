@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [error, setError] = useState(null)
   const [smsByEvent, setSmsByEvent] = useState({})
   const [loadingSms, setLoadingSms] = useState(null)
+  const [style, setStyle] = useState('hook')
 
   useEffect(() => {
     let cancelled = false
@@ -33,7 +34,7 @@ export default function Dashboard() {
   async function generate(id) {
     setLoadingSms(id)
     try {
-      const msgs = await api.generateSms(id)
+      const msgs = await api.generateSms(id, style)
       setSmsByEvent((s) => ({ ...s, [id]: msgs }))
     } catch (e) {
       setError(e.message)
@@ -107,6 +108,11 @@ export default function Dashboard() {
               <button onClick={() => generate(e.id)} disabled={loadingSms === e.id}>
                 {loadingSms === e.id ? t('generating') : t('generateSms')}
               </button>
+              <div className="switch">
+                <button className={style === 'standard' ? 'active' : ''} onClick={() => setStyle('standard')}>{t('styleStandard')}</button>
+                <button className={style === 'hook' ? 'active' : ''} onClick={() => setStyle('hook')}>{t('styleHook')}</button>
+                <button className={style === 'urgent' ? 'active' : ''} onClick={() => setStyle('urgent')}>{t('styleUrgent')}</button>
+              </div>
               <Link className="link" to={`/events/${e.id}`}>{t('details')}</Link>
             </div>
             {smsByEvent[e.id] && <SmsList messages={smsByEvent[e.id]} />}

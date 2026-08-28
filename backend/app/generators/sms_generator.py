@@ -20,7 +20,7 @@ from app.analyzers.event_engine import MarketEventData
 VERSIONS = ["A", "B", "C", "D", "E", "F", "G"]
 VERSION_CTA = {"A": "MORE", "B": "LIST", "C": "WATCH", "D": "FULL", "E": "BULL", "F": "OK", "G": "Yes"}
 CTA_SET = {"MORE", "LIST", "WATCH", "FULL", "BULL", "OK", "Yes"}
-STYLES = ["standard", "hook"]
+STYLES = ["standard", "hook", "urgent"]
 DEFAULT_STYLE = "hook"
 
 FORBIDDEN = [
@@ -135,7 +135,26 @@ STANDARD_TEMPLATES = [
      "今天{Z}板块下方有明显的买盘支撑。"),
 ]
 
-TEMPLATES_BY_STYLE = {"hook": HOOK_TEMPLATES, "standard": STANDARD_TEMPLATES}
+URGENT_TEMPLATES = [
+    ("The {S} move is happening now — the window is closing fast.", "{Z}这波正在进行——时间窗口正在快速关闭。"),
+    ("Don't wait too long on {S}. The leaders are already running.", "别在{Z}上等太久，龙头已经在跑了。"),
+    ("The {S} setup is live right now. Every minute counts.", "{Z}的结构现在就在成形，每一分钟都重要。"),
+    ("This {S} move won't wait for you. Acting now?", "{Z}这波不会等你。现在行动？"),
+    ("The {S} leaders are moving into the close — little time left.", "{Z}龙头正在冲收盘——时间不多了。"),
+    ("Right now is the window on {S}. It's tightening fast.", "{Z}的机会就是现在，窗口正在快速收窄。"),
+    ("The {S} trade is heating up as we speak.", "{Z}行情正在实时升温。"),
+    ("Minutes matter in {S} today. The setup is now.", "{Z}今天分秒必争，结构就是现在。"),
+    ("The {S} move is breaking as I write this.", "{Z}这波行情在我写下这行字时正在突破。"),
+    ("Don't be the last one to see the {S} move.", "别做最后一个看到{Z}这波的人。"),
+    ("The {S} window is open now — it could close by the bell.", "{Z}的窗口现在开着——收盘前可能就关了。"),
+    ("This is the moment for {S}. Are you in time?", "现在就是{Z}的时刻，你赶得上吗？"),
+]
+
+TEMPLATES_BY_STYLE = {
+    "hook": HOOK_TEMPLATES,
+    "standard": STANDARD_TEMPLATES,
+    "urgent": URGENT_TEMPLATES,
+}
 
 CTA_LINES = {
     "MORE": ("Reply MORE for the names.", "回复 MORE 获取名单。"),
@@ -156,12 +175,37 @@ class SmsDraft:
     body_zh: str = ""
 
 
-def _render(template, subject, cta) -> tuple[str, str]:
+def _render(template, subject, cta, style) -> tuple[str, str]:
     en_t, zh_t = template
     s_en, s_zh = subject
     cta_en, cta_zh = CTA_LINES[cta]
-    body = f"{en_t.replace('{S}', s_en)} {cta_en} {STOP_EN}"
-    body_zh = f"{zh_t.replace('{Z}', s_zh)}{cta_zh}{STOP_ZH}"
+    body = f"{en_t.replace('{S}', s_en)} {cta_en}"
+    body_zh = f"{zh_t.replace('{Z}', s_zh)}{cta_zh}"
+    # STOP is kept only on the hook style
+    if style == "hook":
+        body += f" {STOP_EN}"
+        body_zh += STOP_ZH
+    # "仅限数据" disclaimer, random position, on every message
+    body, body_zh = _add_disclaimer(body, body_zh)
+    return body, body_zh
+
+
+def _add_disclaimer(body: str, body_zh: str) -> tuple[str, str]:
+    pos = random.choice(["start", "middle", "end"])
+    if pos == "start":
+        return "Data only. " + body, "仅限数据。" + body_zh
+    if pos == "end":
+        return body + " Data only.", body_zh + "仅限数据。"
+    en_parts = body.split(". ", 1)
+    zh_parts = body_zh.split("。", 1)
+    if len(en_parts) == 2:
+        body = en_parts[0] + ". Data only. " + en_parts[1]
+    else:
+        body = body + " Data only."
+    if len(zh_parts) == 2:
+        body_zh = zh_parts[0] + "。仅限数据。" + zh_parts[1]
+    else:
+        body_zh = body_zh + "仅限数据。"
     return body, body_zh
 
 
@@ -182,7 +226,7 @@ class SmsGenerator:
         used_templates: set[int] = set()
         used_subjects: set[int] = set()
         for version in VERSIONS:
-            drafts.append(self._build_fresh(templates, subjects, version, used_templates, used_subjects, set()))
+            drafts.append(self._build_fresh(templates, subjects, style, version, used_templates, used_subjects, set()))
         return drafts
 
     def generate_one(self, event: MarketEventData, version: str, style: str = DEFAULT_STYLE, avoid=()) -> SmsDraft:
@@ -190,9 +234,9 @@ class SmsGenerator:
             version = "A"
         templates = TEMPLATES_BY_STYLE.get(style, HOOK_TEMPLATES)
         subjects = THEME_SUBJECTS.get(event.theme, DEFAULT_SUBJECTS)
-        return self._build_fresh(templates, subjects, version, set(), set(), set(avoid))
+        return self._build_fresh(templates, subjects, style, version, set(), set(), set(avoid))
 
-    def _build_fresh(self, templates, subjects, version, used_templates, used_subjects, avoid) -> SmsDraft:
+    def _build_fresh(self, templates, subjects, style, version, used_templates, used_subjects, avoid) -> SmsDraft:
         cta = VERSION_CTA[version]
         tidxs = list(range(len(templates)))
         random.shuffle(tidxs)
@@ -206,7 +250,7 @@ class SmsGenerator:
             for sidx in sidxs:
                 if sidx in used_subjects:
                     continue
-                body, body_zh = _render(templates[tidx], subjects[sidx], cta)
+                body, body_zh = _render(templates[tidx], subjects[sidx], cta, style)
                 if body in self._history or body in avoid or _forbidden(body):
                     continue
                 used_templates.add(tidx)
@@ -219,7 +263,7 @@ class SmsGenerator:
             if tidx in used_templates:
                 continue
             for sidx in sidxs:
-                body, body_zh = _render(templates[tidx], subjects[sidx], cta)
+                body, body_zh = _render(templates[tidx], subjects[sidx], cta, style)
                 if body in self._history or body in avoid or _forbidden(body):
                     continue
                 used_templates.add(tidx)
@@ -227,7 +271,7 @@ class SmsGenerator:
                 return SmsDraft(version, body, cta, body_zh)
 
         # fallback (should be rare)
-        body, body_zh = _render(templates[tidxs[0]], subjects[sidxs[0]], cta)
+        body, body_zh = _render(templates[tidxs[0]], subjects[sidxs[0]], cta, style)
         self._history.add(body)
         return SmsDraft(version, body, cta, body_zh)
 

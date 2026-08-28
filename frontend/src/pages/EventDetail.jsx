@@ -10,6 +10,7 @@ export default function EventDetail() {
   const { t } = useLang()
   const [event, setEvent] = useState(null)
   const [sms, setSms] = useState(null)
+  const [style, setStyle] = useState('hook')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -20,7 +21,7 @@ export default function EventDetail() {
   async function generate() {
     setLoading(true)
     try {
-      setSms(await api.generateSms(id))
+      setSms(await api.generateSms(id, style))
     } catch (e) {
       setError(e.message)
     } finally {
@@ -69,6 +70,11 @@ export default function EventDetail() {
           <button onClick={generate} disabled={loading}>
             {loading ? t('generating') : t('generateSms')}
           </button>
+          <div className="switch">
+            <button className={style === 'standard' ? 'active' : ''} onClick={() => setStyle('standard')}>{t('styleStandard')}</button>
+            <button className={style === 'hook' ? 'active' : ''} onClick={() => setStyle('hook')}>{t('styleHook')}</button>
+            <button className={style === 'urgent' ? 'active' : ''} onClick={() => setStyle('urgent')}>{t('styleUrgent')}</button>
+          </div>
         </div>
         {sms && <SmsList messages={sms} />}
       </div>
