@@ -79,33 +79,49 @@ THEME_SUBJECTS = {
 }
 DEFAULT_SUBJECTS = [("the market", "大盘")]
 
-# Natural sentence templates. {S} is the English subject, {Z} the Chinese one.
-# "hook" = punchy reply-driven; "standard" = plain information-forward.
+# Chinese display names for basket symbols (used by the hook style).
+SYMBOL_ZH_NAMES = {
+    "NVDA": "英伟达", "AMD": "超威半导体", "AVGO": "博通",
+    "TSM": "台积电", "INTC": "英特尔", "MU": "美光",
+    "MRVL": "美满电子", "AMAT": "应用材料", "ASML": "阿斯麦",
+    "SMCI": "超微电脑", "QCOM": "高通", "ARM": "安谋",
+    "AAPL": "苹果", "MSFT": "微软", "GOOGL": "谷歌",
+    "AMZN": "亚马逊", "META": "Meta", "NFLX": "奈飞",
+    "TSLA": "特斯拉", "RIVN": "Rivian", "LCID": "Lucid",
+    "FSLR": "第一太阳能", "ENPH": "Enphase", "PLUG": "普拉格能源",
+    "JPM": "摩根大通", "BAC": "美国银行", "GS": "高盛",
+    "MS": "摩根士丹利", "WFC": "富国银行", "C": "花旗",
+    "V": "Visa", "MA": "万事达",
+    "COIN": "Coinbase", "MSTR": "微策略", "MARA": "马拉松数字",
+    "RIOT": "Riot", "HOOD": "Robinhood",
+    "LLY": "礼来", "UNH": "联合健康", "JNJ": "强生",
+    "PFE": "辉瑞", "MRK": "默沙东", "ABBV": "艾伯维", "MRNA": "莫德纳",
+    "WMT": "沃尔玛", "COST": "开市客", "TGT": "塔吉特", "HD": "家得宝",
+    "NKE": "耐克", "SBUX": "星巴克", "MCD": "麦当劳", "DIS": "迪士尼",
+    "ABNB": "爱彼迎",
+    "XOM": "埃克森美孚", "CVX": "雪佛龙", "COP": "康菲石油",
+    "SLB": "斯伦贝谢", "OXY": "西方石油",
+    "BA": "波音", "CAT": "卡特彼勒", "GE": "通用电气",
+    "HON": "霍尼韦尔", "LMT": "洛克希德马丁", "RTX": "雷神",
+}
+
+# Natural sentence templates. {S}/{Z} = theme subject; {NAMES}/{NAMES_ZH} and
+# {DIR}/{DIR_ZH} = concrete stock names + direction (hook style only).
 HOOK_TEMPLATES = [
-    ("{S} names are getting attention today, with several stocks testing session highs.",
-     "{Z}板块今天成为市场关注焦点，几只标的正在测试日内高点。"),
-    ("Volume is separating a few names from the {S} group.",
-     "成交量正在把少数标的从{Z}板块中区分出来。"),
-    ("The {S} trade is back in focus, with a few names starting to separate.",
-     "{Z}行情重新回到市场视野，少数标的开始脱颖而出。"),
-    ("Several {S} stocks are building relative strength into the close.",
-     "几只{Z}标的相对强度在增强，一直延续到临近收盘。"),
-    ("Unusual activity is showing up across the {S} group, worth watching into the close.",
-     "{Z}板块出现异常活跃，值得关注到收盘。"),
-    ("A breakout looks to be forming in the {S} group.",
-     "{Z}板块的突破形态似乎正在形成。"),
-    ("Leadership is getting interesting again in the {S} group.",
-     "{Z}板块的龙头表现再度引人关注。"),
-    ("The {S} group is holding near session highs on stronger volume.",
-     "{Z}板块在放量下于日内高点附近企稳。"),
-    ("Market breadth is improving across the {S} complex.",
-     "{Z}板块的市场广度正在改善。"),
-    ("Fresh rotation is moving into the {S} group ahead of the close.",
-     "临近收盘，资金正在轮动流入{Z}板块。"),
-    ("The {S} group is standing out from the broader tape today.",
-     "今天{Z}板块在大盘中表现突出。"),
-    ("There's a catalyst behind the {S} move this session.",
-     "今天{Z}板块的行情背后有催化剂推动。"),
+    ("{NAMES} {DIR} today. Why? Add me and I'll share the details.",
+     "{NAMES_ZH}{DIR_ZH}，原因是什么？添加我，与你分享详情。"),
+    ("Wondering why {NAMES} {DIR}? Add me and I'll share the details.",
+     "好奇{NAMES_ZH}为什么{DIR_ZH}？添加我，与你分享详情。"),
+    ("Notice {NAMES} {DIR}? Want to know why? Add me and I'll share the details.",
+     "注意到{NAMES_ZH}{DIR_ZH}了吗？想知道原因？添加我，与你分享详情。"),
+    ("{NAMES} {DIR} — any idea why? Add me and I'll share the details.",
+     "{NAMES_ZH}{DIR_ZH}——你知道为什么吗？添加我，与你分享详情。"),
+    ("{NAMES} {DIR} — want the full story? Add me and I'll share the details.",
+     "{NAMES_ZH}{DIR_ZH}——想要完整分析吗？添加我，与你分享详情。"),
+    ("Something's brewing in {NAMES}. Add me and I'll share why.",
+     "{NAMES_ZH}里有点东西在酝酿。添加我，与你分享原因。"),
+    ("The {NAMES} move has people asking why. Add me and I'll share the details.",
+     "{NAMES_ZH}的行情让很多人想问为什么。添加我，与你分享详情。"),
 ]
 
 STANDARD_TEMPLATES = [
@@ -175,18 +191,39 @@ class SmsDraft:
     body_zh: str = ""
 
 
-def _render(template, subject, cta, style) -> tuple[str, str]:
+def _hook_ctx(event, subject) -> dict:
+    stocks = sorted(event.stocks, key=lambda s: abs(s.change_rate or 0), reverse=True)[:3]
+    if not stocks:
+        return {"S": subject[0], "Z": subject[1]}
+    changes = [s.change_rate for s in stocks if s.change_rate is not None]
+    falling = (sum(changes) / len(changes)) < 0 if changes else False
+    en_names = ", ".join((s.name or s.symbol) for s in stocks)
+    zh_names = "、".join(SYMBOL_ZH_NAMES.get(s.symbol, s.name or s.symbol) for s in stocks)
+    return {
+        "S": subject[0], "Z": subject[1],
+        "NAMES": en_names, "NAMES_ZH": zh_names,
+        "DIR": "are falling" if falling else "are rising",
+        "DIR_ZH": "下跌" if falling else "走高",
+    }
+
+
+def _render(template, ctx, cta, style) -> tuple[str, str]:
     en_t, zh_t = template
-    s_en, s_zh = subject
+    en_sent = en_t
+    zh_sent = zh_t
+    for key, val in ctx.items():
+        en_sent = en_sent.replace('{' + key + '}', val)
+        zh_sent = zh_sent.replace('{' + key + '}', val)
     cta_en, cta_zh = CTA_LINES[cta]
-    body = f"{en_t.replace('{S}', s_en)} {cta_en}"
-    body_zh = f"{zh_t.replace('{Z}', s_zh)}{cta_zh}"
+    body = f"{en_sent} {cta_en}"
+    body_zh = f"{zh_sent}{cta_zh}"
     # STOP is kept only on the hook style
     if style == "hook":
         body += f" {STOP_EN}"
         body_zh += STOP_ZH
-    # "仅限数据" disclaimer, random position, on every message
-    body, body_zh = _add_disclaimer(body, body_zh)
+    else:
+        # "仅限数据" disclaimer on standard & urgent (not hook), random position
+        body, body_zh = _add_disclaimer(body, body_zh)
     return body, body_zh
 
 
@@ -226,7 +263,7 @@ class SmsGenerator:
         used_templates: set[int] = set()
         used_subjects: set[int] = set()
         for version in VERSIONS:
-            drafts.append(self._build_fresh(templates, subjects, style, version, used_templates, used_subjects, set()))
+            drafts.append(self._build_fresh(templates, subjects, event, style, version, used_templates, used_subjects, set()))
         return drafts
 
     def generate_one(self, event: MarketEventData, version: str, style: str = DEFAULT_STYLE, avoid=()) -> SmsDraft:
@@ -234,14 +271,18 @@ class SmsGenerator:
             version = "A"
         templates = TEMPLATES_BY_STYLE.get(style, HOOK_TEMPLATES)
         subjects = THEME_SUBJECTS.get(event.theme, DEFAULT_SUBJECTS)
-        return self._build_fresh(templates, subjects, style, version, set(), set(), set(avoid))
+        return self._build_fresh(templates, subjects, event, style, version, set(), set(), set(avoid))
 
-    def _build_fresh(self, templates, subjects, style, version, used_templates, used_subjects, avoid) -> SmsDraft:
+    def _build_fresh(self, templates, subjects, event, style, version, used_templates, used_subjects, avoid) -> SmsDraft:
         cta = VERSION_CTA[version]
         tidxs = list(range(len(templates)))
         random.shuffle(tidxs)
         sidxs = list(range(len(subjects)))
         random.shuffle(sidxs)
+
+        def _ctx(sidx):
+            subject = subjects[sidx]
+            return _hook_ctx(event, subject) if style == "hook" else {"S": subject[0], "Z": subject[1]}
 
         # first pass: fully fresh (unused template, unused subject, not in history/avoid)
         for tidx in tidxs:
@@ -250,7 +291,7 @@ class SmsGenerator:
             for sidx in sidxs:
                 if sidx in used_subjects:
                     continue
-                body, body_zh = _render(templates[tidx], subjects[sidx], cta, style)
+                body, body_zh = _render(templates[tidx], _ctx(sidx), cta, style)
                 if body in self._history or body in avoid or _forbidden(body):
                     continue
                 used_templates.add(tidx)
@@ -263,7 +304,7 @@ class SmsGenerator:
             if tidx in used_templates:
                 continue
             for sidx in sidxs:
-                body, body_zh = _render(templates[tidx], subjects[sidx], cta, style)
+                body, body_zh = _render(templates[tidx], _ctx(sidx), cta, style)
                 if body in self._history or body in avoid or _forbidden(body):
                     continue
                 used_templates.add(tidx)
@@ -271,7 +312,7 @@ class SmsGenerator:
                 return SmsDraft(version, body, cta, body_zh)
 
         # fallback (should be rare)
-        body, body_zh = _render(templates[tidxs[0]], subjects[sidxs[0]], cta, style)
+        body, body_zh = _render(templates[tidxs[0]], _ctx(sidxs[0]), cta, style)
         self._history.add(body)
         return SmsDraft(version, body, cta, body_zh)
 
